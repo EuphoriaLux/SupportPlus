@@ -18,14 +18,12 @@ export const copyTemplate = async (
   
   console.log("Copying to clipboard:", content);
   console.log("Variables used:", variableValues);
-  console.log("Is rich text:", template.isRichText);
   
-  // Copy to clipboard and show notification
-  // Make sure to pass the isRichText flag properly
+  // Copy to clipboard and show notification - always as rich text
   return copyToClipboard(
     content, 
     'Template copied to clipboard!', 
-    !!template.isRichText // Ensure boolean value
+    true // Always rich text
   );
 };
 
@@ -40,7 +38,7 @@ export const copyRawTemplate = async (template: Template): Promise<void> => {
   return copyToClipboard(
     template.content, 
     'Raw template copied to clipboard (variables not replaced)',
-    !!template.isRichText // Respect isRichText property
+    true // Always rich text
   );
 };
 
@@ -58,7 +56,7 @@ export const copyTemplateAsJson = async (template: Template): Promise<void> => {
     category: template.category,
     content: template.content,
     variables: template.variables,
-    isRichText: template.isRichText
+    isRichText: true // Always set to true
   };
   
   // Stringify the template

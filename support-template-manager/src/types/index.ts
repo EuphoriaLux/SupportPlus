@@ -14,7 +14,7 @@ export interface Template {
   content: string;
   variables: Variable[];
   language: 'EN' | 'FR' | 'DE'; // Language of the template
-  isRichText?: boolean; // Whether the template uses rich text formatting
+  isRichText: boolean; // Always true, but kept for backward compatibility
   createdAt: number;
   updatedAt: number;
 }

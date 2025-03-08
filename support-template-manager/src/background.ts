@@ -5,14 +5,14 @@ import { Template } from './types';
 // Listen for installation
 chrome.runtime.onInstalled.addListener((details) => {
   if (details.reason === 'install') {
-    // Set up initial template examples
+    // Set up initial template examples - all with isRichText=true
     const initialTemplates: Template[] = [
       {
         id: crypto.randomUUID(),
-        baseId: crypto.randomUUID(), // Add baseId (will be the same as id for first template)
+        baseId: crypto.randomUUID(),
         name: 'Welcome Response',
         category: 'General',
-        content: 'Hi {{customerName}},\n\nThank you for reaching out to our support team! We\'re happy to help you with your inquiry about {{productName}}.\n\nI\'ll look into this right away and get back to you within {{responseTime}} hours.\n\nBest regards,\n{{agentName}}\n{{teamName}} Support',
+        content: '<p>Hi {{customerName}},</p><p>Thank you for reaching out to our support team! We\'re happy to help you with your inquiry about {{productName}}.</p><p>I\'ll look into this right away and get back to you within {{responseTime}} hours.</p><p>Best regards,<br>{{agentName}}<br>{{teamName}} Support</p>',
         variables: [
           { name: 'customerName', description: 'Customer\'s name', defaultValue: '' },
           { name: 'productName', description: 'Product name', defaultValue: 'our product' },
@@ -21,16 +21,16 @@ chrome.runtime.onInstalled.addListener((details) => {
           { name: 'teamName', description: 'Team name', defaultValue: 'Customer' },
         ],
         language: 'EN',
-        isRichText: false,
+        isRichText: true,
         createdAt: Date.now(),
         updatedAt: Date.now()
       },
       {
         id: crypto.randomUUID(),
-        baseId: crypto.randomUUID(), // Add baseId (will be the same as id for first template)
+        baseId: crypto.randomUUID(),
         name: 'Technical Issue Response',
         category: 'Technical',
-        content: 'Hello {{customerName}},\n\nI understand you\'re experiencing an issue with {{feature}}. I apologize for any inconvenience this has caused.\n\nTo help troubleshoot this issue, could you please provide the following information:\n\n1. What version of {{productName}} are you currently using?\n2. When did you first notice this issue?\n3. {{additionalQuestions}}\n\nOnce I have this information, I\'ll be better equipped to help resolve your issue.\n\nThank you for your patience,\n{{agentName}}\n{{department}} Support Team',
+        content: '<p>Hello {{customerName}},</p><p>I understand you\'re experiencing an issue with {{feature}}. I apologize for any inconvenience this has caused.</p><p>To help troubleshoot this issue, could you please provide the following information:</p><ol><li>What version of {{productName}} are you currently using?</li><li>When did you first notice this issue?</li><li>{{additionalQuestions}}</li></ol><p>Once I have this information, I\'ll be better equipped to help resolve your issue.</p><p>Thank you for your patience,<br>{{agentName}}<br>{{department}} Support Team</p>',
         variables: [
           { name: 'customerName', description: 'Customer\'s name', defaultValue: '' },
           { name: 'feature', description: 'Feature with issue', defaultValue: '' },
@@ -40,16 +40,16 @@ chrome.runtime.onInstalled.addListener((details) => {
           { name: 'department', description: 'Your department', defaultValue: 'Technical' }
         ],
         language: 'EN',
-        isRichText: false,
+        isRichText: true,
         createdAt: Date.now(),
         updatedAt: Date.now()
       },
       {
         id: crypto.randomUUID(),
-        baseId: crypto.randomUUID(), // Add baseId (will be the same as id for first template)
+        baseId: crypto.randomUUID(),
         name: 'Follow-up Template',
         category: 'General',
-        content: 'Hi {{customerName}},\n\nI wanted to follow up on your recent support request regarding {{issueDescription}}.\n\nHas the solution we provided resolved your issue? If you\'re still experiencing problems or have any questions, please don\'t hesitate to let me know.\n\nYour feedback is important to us as we strive to provide the best possible support.\n\nBest regards,\n{{agentName}}\n{{teamName}} Support',
+        content: '<p>Hi {{customerName}},</p><p>I wanted to follow up on your recent support request regarding {{issueDescription}}.</p><p>Has the solution we provided resolved your issue? If you\'re still experiencing problems or have any questions, please don\'t hesitate to let me know.</p><p>Your feedback is important to us as we strive to provide the best possible support.</p><p>Best regards,<br>{{agentName}}<br>{{teamName}} Support</p>',
         variables: [
           { name: 'customerName', description: 'Customer\'s name', defaultValue: '' },
           { name: 'issueDescription', description: 'Brief description of the issue', defaultValue: '' },
@@ -57,11 +57,11 @@ chrome.runtime.onInstalled.addListener((details) => {
           { name: 'teamName', description: 'Team name', defaultValue: 'Customer' }
         ],
         language: 'EN',
-        isRichText: false,
+        isRichText: true,
         createdAt: Date.now(),
         updatedAt: Date.now()
       },
-      // Add a rich text example template
+      // Rich text example template
       {
         id: crypto.randomUUID(),
         baseId: crypto.randomUUID(),
@@ -92,19 +92,35 @@ chrome.runtime.onInstalled.addListener((details) => {
       console.log('Initial templates created');
     });
   } else if (details.reason === 'update') {
-    // Check if we need to migrate templates to add isRichText property
+    // Migrate all templates to rich text format
     chrome.storage.sync.get(STORAGE_KEY, (result) => {
       const templates = result[STORAGE_KEY] || [];
-      const needsMigration = templates.some((t: any) => t.isRichText === undefined);
+      
+      // Check if any templates need migration
+      const needsMigration = templates.some((t: Template) => t.isRichText !== true);
       
       if (needsMigration) {
-        const migratedTemplates = templates.map((t: any) => ({
-          ...t,
-          isRichText: t.isRichText || false
-        }));
+        // Convert any plain text templates to rich text
+        const migratedTemplates = templates.map((t: Template) => {
+          if (t.isRichText !== true) {
+            // Convert plain text to basic HTML by wrapping lines in <p> tags
+            const htmlContent = t.content
+              .split('\n')
+              .filter(line => line.trim() !== '') // Skip empty lines
+              .map(line => `<p>${line}</p>`)
+              .join('');
+            
+            return {
+              ...t,
+              isRichText: true,
+              content: htmlContent || '<p></p>' // Ensure there's at least an empty paragraph
+            };
+          }
+          return t;
+        });
         
         chrome.storage.sync.set({ [STORAGE_KEY]: migratedTemplates }, () => {
-          console.log('Templates migrated to include isRichText property');
+          console.log('Templates migrated to rich text format');
         });
       }
     });

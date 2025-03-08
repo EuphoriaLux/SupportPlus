@@ -54,11 +54,11 @@ const VariableModal: React.FC<VariableModalProps> = ({
     // Parse the template with the provided variable values
     const { content } = parseTemplate(template, values);
     
-    // Copy to clipboard, specifying if this is rich text content
+    // Copy to clipboard as rich text (always true now)
     copyToClipboard(
       content, 
       'Template copied to clipboard!', 
-      !!template.isRichText // Ensure this is a boolean
+      true // Always rich text
     )
       .then(() => {
         // Notify parent component that variables were applied
@@ -124,16 +124,11 @@ const VariableModal: React.FC<VariableModalProps> = ({
           <div>
             <h3 className="text-sm font-medium text-gray-700 mb-2">Template Preview</h3>
             <div className="border rounded-md p-4 bg-gray-50 h-64 overflow-y-auto">
-              {template.isRichText ? (
-                <div 
-                  className="rich-text-preview"
-                  dangerouslySetInnerHTML={{ __html: previewContent }}
-                />
-              ) : (
-                <pre className="whitespace-pre-wrap font-mono text-sm">
-                  {previewContent}
-                </pre>
-              )}
+              {/* Always use rich text rendering */}
+              <div 
+                className="rich-text-preview"
+                dangerouslySetInnerHTML={{ __html: previewContent }}
+              />
             </div>
           </div>
         </div>

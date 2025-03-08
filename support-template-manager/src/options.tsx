@@ -11,6 +11,9 @@ import VariableModal from './components/VariableModal';
 import TemplateLanguageOverview from './components/TemplateLanguageOverview';
 import TemplateCopyLanguageSelector from './components/TemplateCopyLanguageSelector';
 import ImprovedImportExportModal from './components/ImprovedImportExportModal';
+// Add these imports at the top with your other imports:
+import { checkRichTextMigrationNeeded } from './utils/richTextMigration';
+import RichTextMigrationNotice from './components/RichTextMigrationNotice';
 import './assets/styles.css';
 
 // Options Page Component
@@ -43,6 +46,7 @@ const Options = () => {
   // Language selector state
   const [showLanguageSelector, setShowLanguageSelector] = useState(false);
   const [templateTranslations, setTemplateTranslations] = useState<Template[]>([]);
+  const [richTextMigrationNeeded, setRichTextMigrationNeeded] = useState(false);
 
   // Check if migration is needed
   useEffect(() => {
@@ -71,6 +75,7 @@ const Options = () => {
       setMigrationInProgress(false);
     }
   };
+
 
     // Add this function to your Options component
   const handleOnTranslate = (template: Template) => {
@@ -179,11 +184,15 @@ const Options = () => {
     loadTemplates();
   }, []);
 
-  // Handle creating a new template
-  const handleCreateNew = () => {
-    setCurrentTemplate(null);
-    setEditMode('create');
-  };
+// In the main render section, add the migration notice component before the tabs:
+{richTextMigrationNeeded && (
+  <RichTextMigrationNotice
+    onMigrationComplete={() => {
+      setRichTextMigrationNeeded(false);
+      loadTemplates(); // Reload templates after migration
+    }}
+  />
+)}
 
   // Handle creating a new translation of an existing template
   const handleCreateTranslation = (template: Template, language: 'EN' | 'FR' | 'DE') => {
@@ -205,13 +214,12 @@ const Options = () => {
     setEditMode('edit');
   };
 
-  // Handle saving a template
   const handleSaveTemplate = async (data: {
     name: string;
     category: string;
     content: string;
     language: 'EN' | 'FR' | 'DE';
-    isRichText: boolean;
+    isRichText: boolean; // This parameter may still be passed but will be ignored
   }) => {
     try {
       if (editMode === 'create') {
@@ -222,7 +230,7 @@ const Options = () => {
           content: data.content,
           variables: [],
           language: data.language,
-          isRichText: data.isRichText
+          isRichText: true // Always true, ignoring the passed value
         });
       } else if (editMode === 'edit' && currentTemplate) {
         if (currentTemplate.id) {
@@ -232,7 +240,7 @@ const Options = () => {
             category: data.category,
             content: data.content,
             language: data.language,
-            isRichText: data.isRichText
+            isRichText: true // Always true, ignoring the passed value
           });
         } else {
           // Create a new translation
@@ -242,14 +250,14 @@ const Options = () => {
               templateToTranslate,
               data.language,
               data.content,
-              data.isRichText
+              true // Always true for rich text
             );
           } else {
             throw new Error('Could not find template to translate');
           }
         }
       }
-
+  
       // Reload templates and reset form
       await loadTemplates();
       setEditMode(null);
@@ -259,7 +267,6 @@ const Options = () => {
       console.error(err);
     }
   };
-
   // Handle deleting a template
   const handleDeleteTemplate = async (templateId: string) => {
     // Find the template to delete

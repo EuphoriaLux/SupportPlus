@@ -1,7 +1,8 @@
 // Listen for messages from popup
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'INSERT_TEMPLATE') {
-    insertTemplateContent(request.content, request.isRichText || false);
+    // Always insert as rich text
+    insertTemplateContent(request.content);
     sendResponse({ success: true });
     return true;
   }
@@ -9,35 +10,30 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
 /**
  * Insert template content into the active email composer
+ * Always treats content as rich text HTML
  */
-function insertTemplateContent(content: string, isRichText: boolean): void {
+function insertTemplateContent(content: string): void {
   // Detect which email platform we're on
   if (window.location.href.includes('gmail')) {
-    insertIntoGmail(content, isRichText);
+    insertIntoGmail(content);
   } else if (window.location.href.includes('outlook')) {
-    insertIntoOutlook(content, isRichText);
+    insertIntoOutlook(content);
   } else {
     // Generic fallback - try to insert into any focused editable element
-    insertIntoFocusedElement(content, isRichText);
+    insertIntoFocusedElement(content);
   }
 }
 
 /**
  * Insert content into Gmail composer
  */
-function insertIntoGmail(content: string, isRichText: boolean): void {
+function insertIntoGmail(content: string): void {
   // Find the active Gmail composer
   const composerBody = document.querySelector('[role="textbox"][aria-label*="Body"]');
   
   if (composerBody) {
     // Gmail uses contentEditable divs
-    if (isRichText) {
-      // For rich text content, insert directly as HTML
-      composerBody.innerHTML = content;
-    } else {
-      // For plain text, replace newlines with <br> elements for proper formatting
-      composerBody.innerHTML = content.replace(/\n/g, '<br>');
-    }
+    composerBody.innerHTML = content;
     
     // Dispatch input event to ensure Gmail registers the change
     composerBody.dispatchEvent(new Event('input', { bubbles: true }));
@@ -48,18 +44,14 @@ function insertIntoGmail(content: string, isRichText: boolean): void {
 /**
  * Insert content into Outlook composer
  */
-function insertIntoOutlook(content: string, isRichText: boolean): void {
+function insertIntoOutlook(content: string): void {
   // Find the active Outlook composer
   const composerBody = document.querySelector('[aria-label*="Message body"]');
   
   if (composerBody) {
     if (composerBody.hasAttribute('contenteditable')) {
       // Outlook often uses contentEditable divs
-      if (isRichText) {
-        composerBody.innerHTML = content;
-      } else {
-        composerBody.innerHTML = content.replace(/\n/g, '<br>');
-      }
+      composerBody.innerHTML = content;
       
       // Make sure Outlook registers the change
       composerBody.dispatchEvent(new Event('input', { bubbles: true }));
@@ -68,11 +60,7 @@ function insertIntoOutlook(content: string, isRichText: boolean): void {
       // Sometimes Outlook uses iframes
       const iframe = composerBody.querySelector('iframe');
       if (iframe && iframe.contentDocument) {
-        if (isRichText) {
-          iframe.contentDocument.body.innerHTML = content;
-        } else {
-          iframe.contentDocument.body.innerHTML = content.replace(/\n/g, '<br>');
-        }
+        iframe.contentDocument.body.innerHTML = content;
         
         // Try to dispatch events on the iframe document body
         iframe.contentDocument.body.dispatchEvent(new Event('input', { bubbles: true }));
@@ -84,31 +72,22 @@ function insertIntoOutlook(content: string, isRichText: boolean): void {
 /**
  * Generic fallback - insert into any focused editable element
  */
-function insertIntoFocusedElement(content: string, isRichText: boolean): void {
+function insertIntoFocusedElement(content: string): void {
   const activeElement = document.activeElement as HTMLElement;
   
   if (activeElement) {
     if (activeElement instanceof HTMLInputElement || 
         activeElement instanceof HTMLTextAreaElement) {
-      // For regular input elements, we can only insert plain text
-      // Strip HTML if this is rich text content
-      if (isRichText) {
-        const tempDiv = document.createElement('div');
-        tempDiv.innerHTML = content;
-        activeElement.value = tempDiv.textContent || tempDiv.innerText || '';
-      } else {
-        activeElement.value = content;
-      }
+      // For regular input elements, we must convert HTML to plain text
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = content;
+      activeElement.value = tempDiv.textContent || tempDiv.innerText || '';
       
       activeElement.dispatchEvent(new Event('input', { bubbles: true }));
       activeElement.dispatchEvent(new Event('change', { bubbles: true }));
     } else if (activeElement.isContentEditable) {
       // For contentEditable elements, we can insert HTML
-      if (isRichText) {
-        activeElement.innerHTML = content;
-      } else {
-        activeElement.innerHTML = content.replace(/\n/g, '<br>');
-      }
+      activeElement.innerHTML = content;
       
       activeElement.dispatchEvent(new Event('input', { bubbles: true }));
       activeElement.dispatchEvent(new Event('change', { bubbles: true }));

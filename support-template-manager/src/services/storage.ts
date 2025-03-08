@@ -78,6 +78,7 @@ export const storageService = {
       ...template,
       id: newId,
       baseId,
+      isRichText: true, // Always true
       createdAt: timestamp,
       updatedAt: timestamp
     };
@@ -91,7 +92,7 @@ export const storageService = {
     baseTemplate: Template, 
     language: 'EN' | 'FR' | 'DE', 
     content: string,
-    isRichText?: boolean
+    isRichText?: boolean // Keep parameter for backward compatibility
   ): Promise<Template> => {
     const templates = await storageService.getTemplates();
     const timestamp = Date.now();
@@ -106,9 +107,6 @@ export const storageService = {
       throw new Error(`A translation in ${language} already exists for "${baseTemplate.name}"`);
     }
     
-    // Use the rich text setting from the base template if not specified
-    const useRichText = isRichText !== undefined ? isRichText : baseTemplate.isRichText;
-    
     const newTranslation: Template = {
       id: crypto.randomUUID(),
       baseId: baseTemplate.baseId,
@@ -117,7 +115,7 @@ export const storageService = {
       content,
       variables: baseTemplate.variables,
       language,
-      isRichText: useRichText,
+      isRichText: true, // Always true
       createdAt: timestamp,
       updatedAt: timestamp
     };
@@ -148,9 +146,15 @@ export const storageService = {
       }
     }
     
+    // Override isRichText to always be true
+    if (updates.isRichText !== undefined) {
+      updates.isRichText = true;
+    }
+    
     const updatedTemplate = {
       ...templateToUpdate,
       ...updates,
+      isRichText: true, // Ensure it's always true
       updatedAt: Date.now()
     };
     
@@ -262,7 +266,7 @@ export const storageService = {
       const templatesWithUpdates = data.templates.map(template => ({
         ...template,
         baseId: template.baseId || template.id,
-        isRichText: template.isRichText || false
+        isRichText: true // Always true
       }));
       
       await storageService.saveTemplates(templatesWithUpdates);
@@ -287,8 +291,8 @@ export const storageService = {
         needsMigration = true;
       }
       
-      if (template.isRichText === undefined) {
-        updates.isRichText = false;
+      if (template.isRichText !== true) {
+        updates.isRichText = true;
         needsMigration = true;
       }
       
@@ -301,6 +305,39 @@ export const storageService = {
     
     if (needsMigration) {
       await storageService.saveTemplates(migratedTemplates);
+    }
+  },
+  
+  // Migrate templates to rich text format
+  migrateToRichText: async (): Promise<void> => {
+    const templates = await storageService.getTemplates();
+    let needsMigration = false;
+    
+    // Convert all templates to rich text
+    const migratedTemplates = templates.map(template => {
+      if (template.isRichText !== true) {
+        needsMigration = true;
+        
+        // Convert plain text content to HTML
+        const htmlContent = template.content
+          .split('\n')
+          .filter(line => line.trim() !== '') // Skip empty lines
+          .map(line => `<p>${line}</p>`)
+          .join('');
+        
+        return {
+          ...template,
+          isRichText: true,
+          content: htmlContent || '<p></p>' // Ensure there's at least an empty paragraph
+        };
+      }
+      
+      return template;
+    });
+    
+    if (needsMigration) {
+      await storageService.saveTemplates(migratedTemplates);
+      console.log('Migrated all templates to rich text format');
     }
   }
 };

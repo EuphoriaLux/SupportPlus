@@ -124,10 +124,13 @@ const TemplateItem: React.FC<TemplateItemProps> = ({
         </td>
         
         <td className="px-6 py-4">
-          <div className="text-sm text-gray-900 line-clamp-2">
-            {template.content.substring(0, 100)}
-            {template.content.length > 100 ? '...' : ''}
-          </div>
+          <div 
+            className="text-sm text-gray-900 line-clamp-2"
+            dangerouslySetInnerHTML={{ 
+              __html: template.content.substring(0, 100) + 
+                      (template.content.length > 100 ? '...' : '')
+            }}
+          />
         </td>
         
         <td className="px-6 py-4">
@@ -244,9 +247,10 @@ const TemplateItem: React.FC<TemplateItemProps> = ({
                       </div>
                       
                       {langTemplate ? (
-                        <div className="text-sm text-gray-700 whitespace-pre-line overflow-hidden line-clamp-4 font-mono text-xs">
-                          {langTemplate.content}
-                        </div>
+                        <div 
+                          className="text-sm text-gray-700 overflow-hidden line-clamp-4 font-mono text-xs"
+                          dangerouslySetInnerHTML={{ __html: langTemplate.content }}
+                        />
                       ) : (
                         <div className="text-sm text-gray-400 italic">
                           No translation available

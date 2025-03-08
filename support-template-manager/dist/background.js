@@ -84,12 +84,13 @@ const storageService = {
         if (duplicateLanguage) {
             throw new Error(`A template in ${template.language} already exists for "${template.name}"`);
         }
-        const newTemplate = Object.assign(Object.assign({}, template), { id: newId, baseId, createdAt: timestamp, updatedAt: timestamp });
+        const newTemplate = Object.assign(Object.assign({}, template), { id: newId, baseId, isRichText: true, createdAt: timestamp, updatedAt: timestamp });
         yield storageService.saveTemplates([...templates, newTemplate]);
         return newTemplate;
     }),
     // Add a translation to an existing template
-    addTranslation: (baseTemplate, language, content, isRichText) => __awaiter(void 0, void 0, void 0, function* () {
+    addTranslation: (baseTemplate, language, content, isRichText // Keep parameter for backward compatibility
+    ) => __awaiter(void 0, void 0, void 0, function* () {
         const templates = yield storageService.getTemplates();
         const timestamp = Date.now();
         // Check if a translation in this language already exists
@@ -98,8 +99,6 @@ const storageService = {
         if (existingTranslation) {
             throw new Error(`A translation in ${language} already exists for "${baseTemplate.name}"`);
         }
-        // Use the rich text setting from the base template if not specified
-        const useRichText = isRichText !== undefined ? isRichText : baseTemplate.isRichText;
         const newTranslation = {
             id: crypto.randomUUID(),
             baseId: baseTemplate.baseId,
@@ -108,7 +107,7 @@ const storageService = {
             content,
             variables: baseTemplate.variables,
             language,
-            isRichText: useRichText,
+            isRichText: true, // Always true
             createdAt: timestamp,
             updatedAt: timestamp
         };
@@ -131,7 +130,11 @@ const storageService = {
                 throw new Error(`A template in ${updates.language} already exists for "${templateToUpdate.name}"`);
             }
         }
-        const updatedTemplate = Object.assign(Object.assign(Object.assign({}, templateToUpdate), updates), { updatedAt: Date.now() });
+        // Override isRichText to always be true
+        if (updates.isRichText !== undefined) {
+            updates.isRichText = true;
+        }
+        const updatedTemplate = Object.assign(Object.assign(Object.assign({}, templateToUpdate), updates), { isRichText: true, updatedAt: Date.now() });
         templates[index] = updatedTemplate;
         // If name or category is updated, update all templates with the same baseId
         if (updates.name || updates.category) {
@@ -213,7 +216,8 @@ const storageService = {
     importData: (data) => __awaiter(void 0, void 0, void 0, function* () {
         if (data.templates) {
             // Make sure all templates have a baseId and isRichText property (for backwards compatibility)
-            const templatesWithUpdates = data.templates.map(template => (Object.assign(Object.assign({}, template), { baseId: template.baseId || template.id, isRichText: template.isRichText || false })));
+            const templatesWithUpdates = data.templates.map(template => (Object.assign(Object.assign({}, template), { baseId: template.baseId || template.id, isRichText: true // Always true
+             })));
             yield storageService.saveTemplates(templatesWithUpdates);
         }
         if (data.globalVariables) {
@@ -231,8 +235,8 @@ const storageService = {
                 updates.baseId = template.id;
                 needsMigration = true;
             }
-            if (template.isRichText === undefined) {
-                updates.isRichText = false;
+            if (template.isRichText !== true) {
+                updates.isRichText = true;
                 needsMigration = true;
             }
             if (Object.keys(updates).length > 0) {
@@ -242,6 +246,30 @@ const storageService = {
         });
         if (needsMigration) {
             yield storageService.saveTemplates(migratedTemplates);
+        }
+    }),
+    // Migrate templates to rich text format
+    migrateToRichText: () => __awaiter(void 0, void 0, void 0, function* () {
+        const templates = yield storageService.getTemplates();
+        let needsMigration = false;
+        // Convert all templates to rich text
+        const migratedTemplates = templates.map(template => {
+            if (template.isRichText !== true) {
+                needsMigration = true;
+                // Convert plain text content to HTML
+                const htmlContent = template.content
+                    .split('\n')
+                    .filter(line => line.trim() !== '') // Skip empty lines
+                    .map(line => `<p>${line}</p>`)
+                    .join('');
+                return Object.assign(Object.assign({}, template), { isRichText: true, content: htmlContent || '<p></p>' // Ensure there's at least an empty paragraph
+                 });
+            }
+            return template;
+        });
+        if (needsMigration) {
+            yield storageService.saveTemplates(migratedTemplates);
+            console.log('Migrated all templates to rich text format');
         }
     })
 };
@@ -319,14 +347,14 @@ __webpack_require__.r(__webpack_exports__);
 // Listen for installation
 chrome.runtime.onInstalled.addListener((details) => {
     if (details.reason === 'install') {
-        // Set up initial template examples
+        // Set up initial template examples - all with isRichText=true
         const initialTemplates = [
             {
                 id: crypto.randomUUID(),
-                baseId: crypto.randomUUID(), // Add baseId (will be the same as id for first template)
+                baseId: crypto.randomUUID(),
                 name: 'Welcome Response',
                 category: 'General',
-                content: 'Hi {{customerName}},\n\nThank you for reaching out to our support team! We\'re happy to help you with your inquiry about {{productName}}.\n\nI\'ll look into this right away and get back to you within {{responseTime}} hours.\n\nBest regards,\n{{agentName}}\n{{teamName}} Support',
+                content: '<p>Hi {{customerName}},</p><p>Thank you for reaching out to our support team! We\'re happy to help you with your inquiry about {{productName}}.</p><p>I\'ll look into this right away and get back to you within {{responseTime}} hours.</p><p>Best regards,<br>{{agentName}}<br>{{teamName}} Support</p>',
                 variables: [
                     { name: 'customerName', description: 'Customer\'s name', defaultValue: '' },
                     { name: 'productName', description: 'Product name', defaultValue: 'our product' },
@@ -335,16 +363,16 @@ chrome.runtime.onInstalled.addListener((details) => {
                     { name: 'teamName', description: 'Team name', defaultValue: 'Customer' },
                 ],
                 language: 'EN',
-                isRichText: false,
+                isRichText: true,
                 createdAt: Date.now(),
                 updatedAt: Date.now()
             },
             {
                 id: crypto.randomUUID(),
-                baseId: crypto.randomUUID(), // Add baseId (will be the same as id for first template)
+                baseId: crypto.randomUUID(),
                 name: 'Technical Issue Response',
                 category: 'Technical',
-                content: 'Hello {{customerName}},\n\nI understand you\'re experiencing an issue with {{feature}}. I apologize for any inconvenience this has caused.\n\nTo help troubleshoot this issue, could you please provide the following information:\n\n1. What version of {{productName}} are you currently using?\n2. When did you first notice this issue?\n3. {{additionalQuestions}}\n\nOnce I have this information, I\'ll be better equipped to help resolve your issue.\n\nThank you for your patience,\n{{agentName}}\n{{department}} Support Team',
+                content: '<p>Hello {{customerName}},</p><p>I understand you\'re experiencing an issue with {{feature}}. I apologize for any inconvenience this has caused.</p><p>To help troubleshoot this issue, could you please provide the following information:</p><ol><li>What version of {{productName}} are you currently using?</li><li>When did you first notice this issue?</li><li>{{additionalQuestions}}</li></ol><p>Once I have this information, I\'ll be better equipped to help resolve your issue.</p><p>Thank you for your patience,<br>{{agentName}}<br>{{department}} Support Team</p>',
                 variables: [
                     { name: 'customerName', description: 'Customer\'s name', defaultValue: '' },
                     { name: 'feature', description: 'Feature with issue', defaultValue: '' },
@@ -354,16 +382,16 @@ chrome.runtime.onInstalled.addListener((details) => {
                     { name: 'department', description: 'Your department', defaultValue: 'Technical' }
                 ],
                 language: 'EN',
-                isRichText: false,
+                isRichText: true,
                 createdAt: Date.now(),
                 updatedAt: Date.now()
             },
             {
                 id: crypto.randomUUID(),
-                baseId: crypto.randomUUID(), // Add baseId (will be the same as id for first template)
+                baseId: crypto.randomUUID(),
                 name: 'Follow-up Template',
                 category: 'General',
-                content: 'Hi {{customerName}},\n\nI wanted to follow up on your recent support request regarding {{issueDescription}}.\n\nHas the solution we provided resolved your issue? If you\'re still experiencing problems or have any questions, please don\'t hesitate to let me know.\n\nYour feedback is important to us as we strive to provide the best possible support.\n\nBest regards,\n{{agentName}}\n{{teamName}} Support',
+                content: '<p>Hi {{customerName}},</p><p>I wanted to follow up on your recent support request regarding {{issueDescription}}.</p><p>Has the solution we provided resolved your issue? If you\'re still experiencing problems or have any questions, please don\'t hesitate to let me know.</p><p>Your feedback is important to us as we strive to provide the best possible support.</p><p>Best regards,<br>{{agentName}}<br>{{teamName}} Support</p>',
                 variables: [
                     { name: 'customerName', description: 'Customer\'s name', defaultValue: '' },
                     { name: 'issueDescription', description: 'Brief description of the issue', defaultValue: '' },
@@ -371,11 +399,11 @@ chrome.runtime.onInstalled.addListener((details) => {
                     { name: 'teamName', description: 'Team name', defaultValue: 'Customer' }
                 ],
                 language: 'EN',
-                isRichText: false,
+                isRichText: true,
                 createdAt: Date.now(),
                 updatedAt: Date.now()
             },
-            // Add a rich text example template
+            // Rich text example template
             {
                 id: crypto.randomUUID(),
                 baseId: crypto.randomUUID(),
@@ -405,14 +433,28 @@ chrome.runtime.onInstalled.addListener((details) => {
         });
     }
     else if (details.reason === 'update') {
-        // Check if we need to migrate templates to add isRichText property
+        // Migrate all templates to rich text format
         chrome.storage.sync.get(_services_storage__WEBPACK_IMPORTED_MODULE_0__.STORAGE_KEY, (result) => {
             const templates = result[_services_storage__WEBPACK_IMPORTED_MODULE_0__.STORAGE_KEY] || [];
-            const needsMigration = templates.some((t) => t.isRichText === undefined);
+            // Check if any templates need migration
+            const needsMigration = templates.some((t) => t.isRichText !== true);
             if (needsMigration) {
-                const migratedTemplates = templates.map((t) => (Object.assign(Object.assign({}, t), { isRichText: t.isRichText || false })));
+                // Convert any plain text templates to rich text
+                const migratedTemplates = templates.map((t) => {
+                    if (t.isRichText !== true) {
+                        // Convert plain text to basic HTML by wrapping lines in <p> tags
+                        const htmlContent = t.content
+                            .split('\n')
+                            .filter(line => line.trim() !== '') // Skip empty lines
+                            .map(line => `<p>${line}</p>`)
+                            .join('');
+                        return Object.assign(Object.assign({}, t), { isRichText: true, content: htmlContent || '<p></p>' // Ensure there's at least an empty paragraph
+                         });
+                    }
+                    return t;
+                });
                 chrome.storage.sync.set({ [_services_storage__WEBPACK_IMPORTED_MODULE_0__.STORAGE_KEY]: migratedTemplates }, () => {
-                    console.log('Templates migrated to include isRichText property');
+                    console.log('Templates migrated to rich text format');
                 });
             }
         });
