@@ -9,6 +9,8 @@ import MultilingualTemplateForm from './components/MultilingualTemplateForm';
 import TemplateList from './components/TemplateList';
 import VariableModal from './components/VariableModal';
 import TemplateLanguageOverview from './components/TemplateLanguageOverview';
+import TemplateCopyLanguageSelector from './components/TemplateCopyLanguageSelector';
+import ImprovedImportExportModal from './components/ImprovedImportExportModal';
 import './assets/styles.css';
 
 // Options Page Component
@@ -27,8 +29,6 @@ const Options = () => {
   const [editMode, setEditMode] = useState<'create' | 'edit' | null>(null);
   
   // For importing/exporting
-  const [exportData, setExportData] = useState('');
-  const [importData, setImportData] = useState('');
   const [showImportExport, setShowImportExport] = useState(false);
 
   // Variable modal state
@@ -39,6 +39,10 @@ const Options = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [languageFilter, setLanguageFilter] = useState<'ALL' | 'EN' | 'FR' | 'DE'>('ALL');
   const [groupTranslations, setGroupTranslations] = useState<boolean>(true);
+
+  // Language selector state
+  const [showLanguageSelector, setShowLanguageSelector] = useState(false);
+  const [templateTranslations, setTemplateTranslations] = useState<Template[]>([]);
 
   // Check if migration is needed
   useEffect(() => {
@@ -274,45 +278,27 @@ const Options = () => {
       t.id !== template.id
     );
     
-    // If there are translations, prompt for language selection
+    // If there are translations, show the language selector modal
     if (translations.length > 0) {
-      // Create an array of available languages
-      const availableLanguages = [
-        { code: template.language || 'EN', id: template.id }
-      ];
-      
-      translations.forEach(t => {
-        availableLanguages.push({ code: t.language || 'EN', id: t.id });
-      });
-      
-      // Construct options for prompt
-      const languageOptions = availableLanguages.map(lang => 
-        `${lang.code} (${lang.code === template.language ? 'current' : 'translation'})`
-      ).join(', ');
-      
-      // Show prompt to select language
-      const selectedLang = prompt(
-        `Which language version would you like to copy?\nAvailable: ${languageOptions}`,
-        template.language || 'EN'
-      );
-      
-      if (!selectedLang) return; // User cancelled
-      
-      // Find the template with the selected language
-      const selectedTemplate = availableLanguages.find(l => l.code === selectedLang)?.id;
-      if (selectedTemplate) {
-        const templateToUse = templates.find(t => t.id === selectedTemplate);
-        if (templateToUse) {
-          setTemplateToCopy(templateToUse);
-          setShowVariableModal(true);
-          return;
-        }
-      }
+      setTemplateToCopy(template);
+      setTemplateTranslations(translations);
+      setShowLanguageSelector(true);
+    } else {
+      // No translations, use the current template
+      setTemplateToCopy(template);
+      setShowVariableModal(true);
     }
-    
-    // No translations or language selection failed, use the original template
-    setTemplateToCopy(template);
-    setShowVariableModal(true);
+  };
+
+  // Handle language selection from the modal
+  const handleLanguageSelected = (templateId: string) => {
+    // Find the template with the selected language
+    const selectedTemplate = templates.find(t => t.id === templateId);
+    if (selectedTemplate) {
+      setTemplateToCopy(selectedTemplate);
+      setShowLanguageSelector(false);
+      setShowVariableModal(true);
+    }
   };
 
   // Handle variable values submitted from modal
@@ -324,22 +310,8 @@ const Options = () => {
     setTemplateToCopy(null);
   };
 
-  // Handle exporting templates and global variables
-  const handleExport = async () => {
-    const exportData = await storageService.exportData();
-    
-    const exportObj = {
-      templates: exportData.templates,
-      globalVariables: exportData.globalVariables,
-      exportDate: new Date().toISOString()
-    };
-    
-    setExportData(JSON.stringify(exportObj, null, 2));
-    setShowImportExport(true);
-  };
-
   // Handle importing templates and global variables
-  const handleImport = () => {
+  const handleImportData = (importData: string) => {
     try {
       const importObj = JSON.parse(importData);
       
@@ -386,7 +358,11 @@ const Options = () => {
         // Reload everything and reset the import state
         await loadTemplates();
         setShowImportExport(false);
-        setImportData('');
+        
+        // Show success message
+        alert(`Successfully imported ${importObj.templates.length} templates${
+          hasGlobalVars ? ` and ${importObj.globalVariables.length} global variables` : ''
+        }`);
       };
 
       processImport();
@@ -516,74 +492,31 @@ const Options = () => {
     );
   }
 
-  // Render import/export modal
+  // Render improved import/export modal
   if (showImportExport) {
     return (
-      <div className="container mx-auto px-4 py-8 max-w-4xl">
-        <h1 className="text-2xl font-bold mb-6">Import/Export Templates</h1>
+      <ImprovedImportExportModal
+        templates={templates}
+        templateGroups={templateGroups}
+        globalVariables={globalVariables}
+        onImport={handleImportData}
+        onClose={() => setShowImportExport(false)}
+      />
+    );
+  }
 
-        <div className="bg-white shadow-md rounded p-6">
-          <div className="mb-6">
-            <h3 className="text-lg font-bold mb-3">Export Templates</h3>
-            <p className="text-sm text-gray-600 mb-2">
-              Copy this JSON data to save your templates or share with others.
-            </p>
-            <textarea
-              className="w-full px-3 py-2 border rounded font-mono"
-              rows={10}
-              value={exportData}
-              readOnly
-            />
-            <div className="mt-2">
-              <button 
-                className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
-                onClick={() => {
-                  navigator.clipboard.writeText(exportData);
-                  alert('Exported data copied to clipboard!');
-                }}
-              >
-                Copy to Clipboard
-              </button>
-            </div>
-          </div>
-
-          <div className="mb-6">
-            <h3 className="text-lg font-bold mb-3">Import Templates</h3>
-            <p className="text-sm text-gray-600 mb-2">
-              Paste previously exported template JSON data here.
-            </p>
-            <textarea
-              className="w-full px-3 py-2 border rounded font-mono"
-              rows={10}
-              value={importData}
-              onChange={(e) => setImportData(e.target.value)}
-              placeholder="Paste template export data here..."
-            />
-            <div className="mt-2">
-              <button 
-                className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-                onClick={handleImport}
-                disabled={!importData}
-              >
-                Import Templates
-              </button>
-            </div>
-          </div>
-
-          <div className="flex justify-end">
-            <button 
-              className="px-4 py-2 border rounded hover:bg-gray-100"
-              onClick={() => {
-                setShowImportExport(false);
-                setExportData('');
-                setImportData('');
-              }}
-            >
-              Close
-            </button>
-          </div>
-        </div>
-      </div>
+  // Render language selector modal
+  if (showLanguageSelector && templateToCopy) {
+    return (
+      <TemplateCopyLanguageSelector
+        template={templateToCopy}
+        translations={templateTranslations}
+        onSelectLanguage={handleLanguageSelected}
+        onCancel={() => {
+          setShowLanguageSelector(false);
+          setTemplateToCopy(null);
+        }}
+      />
     );
   }
 

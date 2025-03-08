@@ -7,6 +7,11 @@ interface TemplateLanguageOverviewProps {
   onAddTranslation: (baseId: string, language: 'EN' | 'FR' | 'DE') => void;
 }
 
+// Type guard to check if a string is a valid language code
+const isValidLanguage = (lang: string): lang is 'EN' | 'FR' | 'DE' => {
+  return lang === 'EN' || lang === 'FR' || lang === 'DE';
+};
+
 const TemplateLanguageOverview: React.FC<TemplateLanguageOverviewProps> = ({
   templateGroups,
   onSelectTemplate,
@@ -91,12 +96,12 @@ const TemplateLanguageOverview: React.FC<TemplateLanguageOverviewProps> = ({
           <tbody className="bg-white divide-y divide-gray-200">
             {filteredGroups.map(group => {
               // Get available languages
-              const availableLanguages: ('EN' | 'FR' | 'DE')[] = ['EN', 'FR', 'DE'].filter(
+              const availableLanguages: ('EN' | 'FR' | 'DE')[] = (['EN', 'FR', 'DE'] as const).filter(
                 lang => group.templates[lang] !== null
               );
               
               // Get missing languages
-              const missingLanguages: ('EN' | 'FR' | 'DE')[] = ['EN', 'FR', 'DE'].filter(
+              const missingLanguages: ('EN' | 'FR' | 'DE')[] = (['EN', 'FR', 'DE'] as const).filter(
                 lang => group.templates[lang] === null
               );
               

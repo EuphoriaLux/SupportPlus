@@ -14,6 +14,11 @@ interface MultilingualTemplateFormProps {
   onCancel: () => void;
 }
 
+// Type guard to check if a string is a valid language code
+const isValidLanguage = (lang: string): lang is 'EN' | 'FR' | 'DE' => {
+  return lang === 'EN' || lang === 'FR' || lang === 'DE';
+};
+
 const MultilingualTemplateForm: React.FC<MultilingualTemplateFormProps> = ({ 
   template, 
   onSave, 
@@ -58,7 +63,7 @@ const MultilingualTemplateForm: React.FC<MultilingualTemplateFormProps> = ({
         // Add each template to its language slot
         relatedTemplates.forEach(t => {
           const lang = t.language || 'EN';
-          if (lang === 'EN' || lang === 'FR' || lang === 'DE') {
+          if (isValidLanguage(lang)) {
             group.templates[lang] = t;
           }
         });
@@ -135,12 +140,12 @@ const MultilingualTemplateForm: React.FC<MultilingualTemplateFormProps> = ({
   };
 
   // Get available languages (those that don't already have a template)
-  const getAvailableLanguages = () => {
+  const getAvailableLanguages = (): ('EN' | 'FR' | 'DE')[] => {
     if (!template || !templateGroup) {
       return ['EN', 'FR', 'DE'];
     }
     
-    return ['EN', 'FR', 'DE'].filter(lang => 
+    return (['EN', 'FR', 'DE'] as const).filter(lang => 
       !templateGroup.templates[lang] || templateGroup.templates[lang]?.id === template.id
     );
   };
@@ -245,7 +250,12 @@ const MultilingualTemplateForm: React.FC<MultilingualTemplateFormProps> = ({
         </label>
         <select
           value={language}
-          onChange={(e) => setLanguage(e.target.value as 'EN' | 'FR' | 'DE')}
+          onChange={(e) => {
+            const value = e.target.value;
+            if (isValidLanguage(value)) {
+              setLanguage(value);
+            }
+          }}
           className="w-full px-3 py-2 border rounded"
           disabled={!!template} // Can't change language of existing template
         >

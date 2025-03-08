@@ -94,10 +94,15 @@ const TemplateItem: React.FC<TemplateItemProps> = ({
       </td>
       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
         <button
-          className="text-green-600 hover:text-green-900 mr-3"
+          className="text-green-600 hover:text-green-900 mr-3 flex items-center"
           onClick={(e) => onCopy(template, e)}
         >
-          Copy
+          <span>Copy</span>
+          {translations.length > 0 && (
+            <span className="ml-1 text-xs bg-blue-100 text-blue-800 rounded-full px-2 py-0.5">
+              {translations.length + 1} languages
+            </span>
+          )}
         </button>
         <button
           className="text-blue-600 hover:text-blue-900 mr-3"
