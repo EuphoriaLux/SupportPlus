@@ -6,34 +6,73 @@ interface TemplateItemProps {
   onEdit: (template: Template) => void;
   onDelete: (templateId: string) => void;
   onCopy: (template: Template, e: React.MouseEvent) => void;
+  onTranslate: (template: Template) => void;
+  allTemplates: Template[]; // Add all templates to find translations
 }
 
 const TemplateItem: React.FC<TemplateItemProps> = ({ 
   template, 
   onEdit, 
   onDelete, 
-  onCopy 
+  onCopy,
+  onTranslate,
+  allTemplates
 }) => {
+  // Find all translations of this template
+  const translations = allTemplates.filter(t => 
+    t.name === template.name && 
+    t.id !== template.id
+  );
+
+  // Get all available languages for this template
+  const availableLanguages = [
+    template.language || 'EN',
+    ...translations.map(t => t.language || 'EN')
+  ];
+
   return (
     <tr>
       <td className="px-6 py-4 whitespace-nowrap">
         <div className="font-medium text-gray-900">{template.name}</div>
       </td>
       <td className="px-6 py-4 whitespace-nowrap">
-        <div className="flex items-center space-x-2">
+        <div className="flex flex-col space-y-2">
           <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
             {template.category}
           </span>
-          {template.language && (
+          
+          <div className="flex flex-wrap gap-1 mt-1">
+            {/* Current template language */}
             <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
               template.language === 'EN' ? 'bg-green-100 text-green-800' :
               template.language === 'FR' ? 'bg-purple-100 text-purple-800' :
               template.language === 'DE' ? 'bg-orange-100 text-orange-800' :
-              'bg-gray-100 text-gray-800'
+              'bg-green-100 text-green-800' // Default to English styling if no language
             }`}>
-              {template.language}
+              {template.language || 'EN'}
             </span>
-          )}
+            
+            {/* Show available translations */}
+            {translations.length > 0 && (
+              <div className="flex items-center gap-1">
+                <span className="text-xs text-gray-500">+</span>
+                {translations.map(t => (
+                  <span 
+                    key={t.id}
+                    className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                      t.language === 'EN' ? 'bg-green-100 text-green-800' :
+                      t.language === 'FR' ? 'bg-purple-100 text-purple-800' :
+                      t.language === 'DE' ? 'bg-orange-100 text-orange-800' :
+                      'bg-green-100 text-green-800'
+                    }`}
+                    title={`Click 'Translate' to edit this translation`}
+                  >
+                    {t.language || 'EN'}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </td>
       <td className="px-6 py-4">
@@ -68,6 +107,15 @@ const TemplateItem: React.FC<TemplateItemProps> = ({
           }}
         >
           Edit
+        </button>
+        <button
+          className="text-purple-600 hover:text-purple-900 mr-3"
+          onClick={(e) => {
+            e.stopPropagation();
+            onTranslate(template);
+          }}
+        >
+          Translate
         </button>
         <button
           className="text-red-600 hover:text-red-900"

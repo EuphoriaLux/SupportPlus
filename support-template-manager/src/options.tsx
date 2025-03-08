@@ -1,21 +1,26 @@
 import React, { useState, useEffect } from 'react';
 import ReactDOM from 'react-dom/client';
-import { Template, Variable } from './types';
+import { Template, Variable, TemplateGroup } from './types';
 import { storageService } from './services/storage';
 import { extractVariables } from './utils/parser';
+import { migrateToMultilingualStructure, checkMigrationNeeded } from './utils/migrationUtils';
 import GlobalVariablesManager from './components/GlobalVariablesManager';
-import TemplateForm from './components/TemplateForm';
+import MultilingualTemplateForm from './components/MultilingualTemplateForm';
 import TemplateList from './components/TemplateList';
 import VariableModal from './components/VariableModal';
+import TemplateLanguageOverview from './components/TemplateLanguageOverview';
 import './assets/styles.css';
 
 // Options Page Component
 const Options = () => {
   const [templates, setTemplates] = useState<Template[]>([]);
+  const [templateGroups, setTemplateGroups] = useState<TemplateGroup[]>([]);
   const [globalVariables, setGlobalVariables] = useState<Variable[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'templates' | 'variables'>('templates');
+  const [migrationNeeded, setMigrationNeeded] = useState(false);
+  const [migrationInProgress, setMigrationInProgress] = useState(false);
+  const [activeTab, setActiveTab] = useState<'templates' | 'variables' | 'multilingual'>('templates');
 
   // Current editing state
   const [currentTemplate, setCurrentTemplate] = useState<Template | null>(null);
@@ -33,19 +38,50 @@ const Options = () => {
   // Search and filter state
   const [searchTerm, setSearchTerm] = useState('');
   const [languageFilter, setLanguageFilter] = useState<'ALL' | 'EN' | 'FR' | 'DE'>('ALL');
+  const [groupTranslations, setGroupTranslations] = useState<boolean>(true);
+
+  // Check if migration is needed
+  useEffect(() => {
+    const checkMigration = async () => {
+      try {
+        const needsMigration = await checkMigrationNeeded();
+        setMigrationNeeded(needsMigration);
+      } catch (err) {
+        console.error('Failed to check migration status:', err);
+      }
+    };
+    
+    checkMigration();
+  }, []);
+
+  // Run migration if needed
+  const handleRunMigration = async () => {
+    try {
+      setMigrationInProgress(true);
+      await migrateToMultilingualStructure();
+      setMigrationNeeded(false);
+      await loadTemplates();
+    } catch (err) {
+      setError('Migration failed: ' + (err as Error).message);
+    } finally {
+      setMigrationInProgress(false);
+    }
+  };
 
   // Load templates and global variables from storage
   const loadTemplates = async () => {
     try {
       setLoading(true);
       
-      // Get templates and existing global variables
-      const [templates, existingGlobalVars] = await Promise.all([
+      // Get templates, template groups, and existing global variables
+      const [templates, templateGroups, existingGlobalVars] = await Promise.all([
         storageService.getTemplates(),
+        storageService.getTemplateGroups(),
         storageService.getGlobalVariables()
       ]);
       
       setTemplates(templates);
+      setTemplateGroups(templateGroups);
 
       // Extract all unique variables across all templates
       const allVars = new Set<string>();
@@ -99,6 +135,20 @@ const Options = () => {
     setEditMode('create');
   };
 
+  // Handle creating a new translation of an existing template
+  const handleCreateTranslation = (template: Template, language: 'EN' | 'FR' | 'DE') => {
+    // Create a new pre-filled template for the translation
+    const newTemplate: Template = {
+      ...template,
+      id: '', // This will be generated when saved
+      language,
+      content: '' // Start with empty content
+    };
+    
+    setCurrentTemplate(newTemplate);
+    setEditMode('edit');
+  };
+
   // Handle editing a template
   const handleEdit = (template: Template) => {
     setCurrentTemplate(template);
@@ -114,22 +164,36 @@ const Options = () => {
   }) => {
     try {
       if (editMode === 'create') {
-        // Create new template with extracted variables
+        // Create new template
         await storageService.addTemplate({
           name: data.name,
           category: data.category,
           content: data.content,
-          variables: [], // Variables will be handled by the storage service
-          language: data.language // Use the language from the form
+          variables: [],
+          language: data.language
         });
       } else if (editMode === 'edit' && currentTemplate) {
-        // Update existing template
-        await storageService.updateTemplate(currentTemplate.id, {
-          name: data.name,
-          category: data.category,
-          content: data.content,
-          language: data.language // Include language in update
-        });
+        if (currentTemplate.id) {
+          // Update existing template
+          await storageService.updateTemplate(currentTemplate.id, {
+            name: data.name,
+            category: data.category,
+            content: data.content,
+            language: data.language
+          });
+        } else {
+          // Create a new translation
+          const templateToTranslate = templates.find(t => t.baseId === currentTemplate.baseId);
+          if (templateToTranslate) {
+            await storageService.addTranslation(
+              templateToTranslate,
+              data.language,
+              data.content
+            );
+          } else {
+            throw new Error('Could not find template to translate');
+          }
+        }
       }
 
       // Reload templates and reset form
@@ -137,29 +201,116 @@ const Options = () => {
       setEditMode(null);
       setCurrentTemplate(null);
     } catch (err) {
-      setError('Failed to save template');
+      setError('Failed to save template: ' + (err as Error).message);
       console.error(err);
     }
   };
 
   // Handle deleting a template
   const handleDeleteTemplate = async (templateId: string) => {
-    if (!confirm('Are you sure you want to delete this template?')) {
+    // Find the template to delete
+    const templateToDelete = templates.find(t => t.id === templateId);
+    if (!templateToDelete) return;
+    
+    // Find all templates with the same baseId
+    const relatedTemplates = templates.filter(t => 
+      t.baseId === templateToDelete.baseId && 
+      t.id !== templateId
+    );
+    
+    let confirmMessage = 'Are you sure you want to delete this template?';
+    
+    if (relatedTemplates.length > 0) {
+      confirmMessage = `This template has ${relatedTemplates.length} translation(s). Do you want to delete all language versions or just this one?
+      
+• Click "OK" to delete only this language version (${templateToDelete.language || 'EN'})
+• Click "Cancel" then confirm to delete ALL language versions`;
+      
+      if (confirm(confirmMessage)) {
+        // Delete only this template
+        try {
+          await storageService.deleteTemplate(templateId);
+          await loadTemplates();
+        } catch (err) {
+          setError('Failed to delete template');
+          console.error(err);
+        }
+        return;
+      }
+      
+      // User cancelled - ask if they want to delete all translations
+      if (confirm(`Delete ALL language versions of "${templateToDelete.name}"?`)) {
+        try {
+          // Delete all templates with this baseId
+          await storageService.deleteTemplateGroup(templateToDelete.baseId);
+          await loadTemplates();
+        } catch (err) {
+          setError('Failed to delete templates');
+          console.error(err);
+        }
+      }
       return;
     }
-
-    try {
-      await storageService.deleteTemplate(templateId);
-      await loadTemplates();
-    } catch (err) {
-      setError('Failed to delete template');
-      console.error(err);
+    
+    // No translations - simple delete with confirmation
+    if (confirm(confirmMessage)) {
+      try {
+        await storageService.deleteTemplate(templateId);
+        await loadTemplates();
+      } catch (err) {
+        setError('Failed to delete template');
+        console.error(err);
+      }
     }
   };
 
   // Handle copying a template with variables
   const handleCopyTemplate = (template: Template, e: React.MouseEvent) => {
     e.stopPropagation();
+    
+    // Find translations of this template
+    const translations = templates.filter(t => 
+      t.baseId === template.baseId && 
+      t.id !== template.id
+    );
+    
+    // If there are translations, prompt for language selection
+    if (translations.length > 0) {
+      // Create an array of available languages
+      const availableLanguages = [
+        { code: template.language || 'EN', id: template.id }
+      ];
+      
+      translations.forEach(t => {
+        availableLanguages.push({ code: t.language || 'EN', id: t.id });
+      });
+      
+      // Construct options for prompt
+      const languageOptions = availableLanguages.map(lang => 
+        `${lang.code} (${lang.code === template.language ? 'current' : 'translation'})`
+      ).join(', ');
+      
+      // Show prompt to select language
+      const selectedLang = prompt(
+        `Which language version would you like to copy?\nAvailable: ${languageOptions}`,
+        template.language || 'EN'
+      );
+      
+      if (!selectedLang) return; // User cancelled
+      
+      // Find the template with the selected language
+      const selectedTemplate = availableLanguages.find(l => l.code === selectedLang)?.id;
+      if (selectedTemplate) {
+        const templateToUse = templates.find(t => t.id === selectedTemplate);
+        if (templateToUse) {
+          setTemplateToCopy(templateToUse);
+          setShowVariableModal(true);
+          return;
+        }
+      }
+    }
+    
+    // No translations or language selection failed, use the original template
     setTemplateToCopy(template);
     setShowVariableModal(true);
   };
@@ -244,6 +395,38 @@ const Options = () => {
     }
   };
 
+  // Process templates to group translations if needed
+  const processTemplates = (templates: Template[]) => {
+    if (!groupTranslations) {
+      return templates;
+    }
+
+    // Create a map of templates by baseId
+    const templateGroups: Record<string, Template[]> = {};
+    templates.forEach(template => {
+      if (!templateGroups[template.baseId]) {
+        templateGroups[template.baseId] = [];
+      }
+      templateGroups[template.baseId].push(template);
+    });
+
+    // Keep only primary language template or the first one found for each group
+    return Object.values(templateGroups).map(group => {
+      // Try to find a template in the current language filter
+      if (languageFilter !== 'ALL') {
+        const matchingLang = group.find(t => t.language === languageFilter);
+        if (matchingLang) return matchingLang;
+      }
+      
+      // Otherwise try English as default
+      const english = group.find(t => t.language === 'EN');
+      if (english) return english;
+      
+      // Fallback to first template
+      return group[0];
+    });
+  };
+
   // Filter templates by search term and language
   const filteredTemplates = templates.filter(template => {
     const term = searchTerm.toLowerCase();
@@ -259,6 +442,31 @@ const Options = () => {
     
     return matchesSearch && matchesLanguage;
   });
+
+  // Apply grouping if needed
+  const displayTemplates = processTemplates(filteredTemplates);
+
+  // Render migration notice if needed
+  if (migrationNeeded) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded">
+          <h2 className="text-xl font-bold mb-2">Database Migration Required</h2>
+          <p className="mb-4">
+            Your templates need to be updated to support the new multilingual features. 
+            This will group templates with the same name as translations of each other.
+          </p>
+          <button 
+            className="px-4 py-2 bg-yellow-500 text-white rounded hover:bg-yellow-600"
+            onClick={handleRunMigration}
+            disabled={migrationInProgress}
+          >
+            {migrationInProgress ? 'Migration in progress...' : 'Run Migration'}
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   // Render loading state
   if (loading && templates.length === 0) {
@@ -278,7 +486,10 @@ const Options = () => {
         </div>
         <button 
           className="mt-4 px-4 py-2 bg-blue-500 text-white rounded"
-          onClick={() => loadTemplates()}
+          onClick={() => {
+            setError(null);
+            loadTemplates();
+          }}
         >
           Retry
         </button>
@@ -287,13 +498,13 @@ const Options = () => {
   }
 
   // Render template form (create/edit)
-  if (editMode) {
+  if (editMode === 'create' || editMode === 'edit') {
     return (
       <div className="container mx-auto px-4 py-8 max-w-4xl">
         <h1 className="text-2xl font-bold mb-6">
           {editMode === 'create' ? 'Create Template' : 'Edit Template'}
         </h1>
-        <TemplateForm 
+        <MultilingualTemplateForm 
           template={currentTemplate || undefined}
           onSave={handleSaveTemplate}
           onCancel={() => {
@@ -414,7 +625,7 @@ const Options = () => {
         </div>
       </div>
 
-      {/* Tabs for switching between Templates and Variables */}
+      {/* Tabs for switching between Templates, Multilingual View, and Variables */}
       <div className="border-b border-gray-200 mb-6">
         <nav className="-mb-px flex space-x-8">
           <button
@@ -426,6 +637,16 @@ const Options = () => {
             onClick={() => setActiveTab('templates')}
           >
             Templates
+          </button>
+          <button
+            className={`py-2 px-1 border-b-2 font-medium text-sm ${
+              activeTab === 'multilingual'
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+            onClick={() => setActiveTab('multilingual')}
+          >
+            Multilingual View
           </button>
           <button
             className={`py-2 px-1 border-b-2 font-medium text-sm ${
@@ -462,6 +683,19 @@ const Options = () => {
               <option value="FR">French</option>
               <option value="DE">German</option>
             </select>
+            
+            <div className="flex items-center px-3 py-2 border rounded">
+              <input
+                type="checkbox"
+                id="groupTranslations"
+                checked={groupTranslations}
+                onChange={e => setGroupTranslations(e.target.checked)}
+                className="mr-2"
+              />
+              <label htmlFor="groupTranslations" className="text-sm">
+                Group Translations
+              </label>
+            </div>
               
             <button
               className="px-3 py-2 bg-green-500 text-white rounded"
@@ -472,12 +706,77 @@ const Options = () => {
           </div>
 
           <TemplateList
-            templates={filteredTemplates}
+            templates={displayTemplates}
+            allTemplates={templates} // Pass all templates for finding translations
             onEdit={handleEdit}
             onDelete={handleDeleteTemplate}
             onCopy={handleCopyTemplate}
+            onTranslate={(template) => {
+              // Show available languages to add translations for
+              const availableLanguages: ('EN' | 'FR' | 'DE')[] = ['EN', 'FR', 'DE'];
+              
+              // Find existing translations
+              const translations = templates.filter(t => 
+                t.baseId === template.baseId && 
+                t.id !== template.id
+              );
+              
+              // Get languages that already have translations
+              const existingLanguages = [
+                template.language || 'EN',
+                ...translations.map(t => t.language || 'EN')
+              ] as ('EN' | 'FR' | 'DE')[];
+              
+              // Get languages that need translations
+              const missingLanguages = availableLanguages.filter(
+                lang => !existingLanguages.includes(lang)
+              );
+              
+              if (missingLanguages.length === 0) {
+                alert('This template already has translations in all languages.');
+                return;
+              }
+              
+              // Ask user which language to add
+              let languageOptions = '';
+              missingLanguages.forEach(lang => {
+                const langName = lang === 'EN' ? 'English' : lang === 'FR' ? 'French' : 'German';
+                languageOptions += `- ${lang} (${langName})\n`;
+              });
+              
+              const selectedLang = prompt(
+                `Select a language to add a translation for "${template.name}":\n${languageOptions}`,
+                missingLanguages[0]
+              ) as 'EN' | 'FR' | 'DE' | null;
+              
+              if (!selectedLang || !missingLanguages.includes(selectedLang)) {
+                return; // Invalid selection or user cancelled
+              }
+              
+              // Create a new translation
+              handleCreateTranslation(template, selectedLang);
+            }}
           />
         </>
+      )}
+
+      {/* Multilingual Tab Content */}
+      {activeTab === 'multilingual' && (
+        <TemplateLanguageOverview
+          templateGroups={templateGroups}
+          onSelectTemplate={(templateId) => {
+            const template = templates.find(t => t.id === templateId);
+            if (template) {
+              handleEdit(template);
+            }
+          }}
+          onAddTranslation={(baseId, language) => {
+            const template = templates.find(t => t.baseId === baseId);
+            if (template) {
+              handleCreateTranslation(template, language);
+            }
+          }}
+        />
       )}
 
       {/* Variables Tab Content */}

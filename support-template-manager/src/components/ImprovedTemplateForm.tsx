@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Template } from '../types';
 import { extractVariables } from '../utils/parser';
+import TemplateLanguageSelector from './TemplateLanguageSelector';
 
-interface TemplateFormProps {
+interface ImprovedTemplateFormProps {
   template?: Template;
+  allTemplates: Template[];
   onSave: (data: { 
     name: string; 
     category: string; 
@@ -11,14 +13,22 @@ interface TemplateFormProps {
     language: 'EN' | 'FR' | 'DE';
   }) => void;
   onCancel: () => void;
+  onLanguageChange: (templateId: string) => void;
 }
 
-const TemplateForm: React.FC<TemplateFormProps> = ({ template, onSave, onCancel }) => {
+const ImprovedTemplateForm: React.FC<ImprovedTemplateFormProps> = ({ 
+  template, 
+  allTemplates,
+  onSave, 
+  onCancel,
+  onLanguageChange
+}) => {
   const [name, setName] = useState(template?.name || '');
   const [category, setCategory] = useState(template?.category || 'General');
   const [content, setContent] = useState(template?.content || '');
   const [language, setLanguage] = useState<'EN' | 'FR' | 'DE'>(template?.language || 'EN');
   const [variables, setVariables] = useState<string[]>([]);
+  const [isEditingTranslation, setIsEditingTranslation] = useState(false);
 
   // Extract variables when content changes
   useEffect(() => {
@@ -29,6 +39,17 @@ const TemplateForm: React.FC<TemplateFormProps> = ({ template, onSave, onCancel 
       setVariables([]);
     }
   }, [content]);
+
+  // Determine if this is an edit of a translation
+  useEffect(() => {
+    if (template && allTemplates) {
+      // Check if other templates with the same name exist
+      const sameNameTemplates = allTemplates.filter(t => 
+        t.name === template.name && t.id !== template.id
+      );
+      setIsEditingTranslation(sameNameTemplates.length > 0);
+    }
+  }, [template, allTemplates]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -48,6 +69,15 @@ const TemplateForm: React.FC<TemplateFormProps> = ({ template, onSave, onCancel 
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      {template && (
+        <TemplateLanguageSelector
+          templateName={template.name}
+          templates={allTemplates}
+          currentLanguage={template.language || 'EN'}
+          onLanguageChange={onLanguageChange}
+        />
+      )}
+
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">
           Template Name*
@@ -59,7 +89,13 @@ const TemplateForm: React.FC<TemplateFormProps> = ({ template, onSave, onCancel 
           className="w-full px-3 py-2 border rounded"
           placeholder="e.g., Welcome Response"
           required
+          disabled={isEditingTranslation} // Disable name editing for translations
         />
+        {isEditingTranslation && (
+          <p className="text-xs text-blue-600 mt-1">
+            Template name cannot be changed when editing a translation.
+          </p>
+        )}
       </div>
 
       <div>
@@ -73,7 +109,13 @@ const TemplateForm: React.FC<TemplateFormProps> = ({ template, onSave, onCancel 
           className="w-full px-3 py-2 border rounded"
           placeholder="e.g., General, Technical, Billing"
           required
+          disabled={isEditingTranslation} // Disable category editing for translations
         />
+        {isEditingTranslation && (
+          <p className="text-xs text-blue-600 mt-1">
+            Category is shared across all language versions.
+          </p>
+        )}
       </div>
 
       <div>
@@ -84,11 +126,17 @@ const TemplateForm: React.FC<TemplateFormProps> = ({ template, onSave, onCancel 
           value={language}
           onChange={(e) => setLanguage(e.target.value as 'EN' | 'FR' | 'DE')}
           className="w-full px-3 py-2 border rounded"
+          disabled={isEditingTranslation} // Can't change language when editing a translation
         >
           <option value="EN">English</option>
           <option value="FR">French</option>
           <option value="DE">German</option>
         </select>
+        {isEditingTranslation && (
+          <p className="text-xs text-blue-600 mt-1">
+            Use the language selector above to switch between language versions.
+          </p>
+        )}
       </div>
 
       <div>
@@ -123,6 +171,11 @@ const TemplateForm: React.FC<TemplateFormProps> = ({ template, onSave, onCancel 
               </span>
             ))}
           </div>
+          {isEditingTranslation && (
+            <p className="text-xs text-blue-600 mt-1">
+              Variables should match across all language versions for proper functionality.
+            </p>
+          )}
         </div>
       )}
 
@@ -145,4 +198,4 @@ const TemplateForm: React.FC<TemplateFormProps> = ({ template, onSave, onCancel 
   );
 };
 
-export default TemplateForm;
+export default ImprovedTemplateForm;

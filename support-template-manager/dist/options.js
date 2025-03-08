@@ -35355,10 +35355,10 @@ const GlobalVariablesManager = ({ variables, onVariablesUpdated }) => {
 
 /***/ }),
 
-/***/ "./src/components/TemplateForm.tsx":
-/*!*****************************************!*\
-  !*** ./src/components/TemplateForm.tsx ***!
-  \*****************************************/
+/***/ "./src/components/MultilingualTemplateForm.tsx":
+/*!*****************************************************!*\
+  !*** ./src/components/MultilingualTemplateForm.tsx ***!
+  \*****************************************************/
 /***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
 
 __webpack_require__.r(__webpack_exports__);
@@ -35369,15 +35369,70 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var react__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! react */ "./node_modules/react/index.js");
 /* harmony import */ var react__WEBPACK_IMPORTED_MODULE_1___default = /*#__PURE__*/__webpack_require__.n(react__WEBPACK_IMPORTED_MODULE_1__);
 /* harmony import */ var _utils_parser__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ../utils/parser */ "./src/utils/parser.ts");
+/* harmony import */ var _services_storage__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ../services/storage */ "./src/services/storage.ts");
+var __awaiter = (undefined && undefined.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
 
 
 
-const TemplateForm = ({ template, onSave, onCancel }) => {
+
+const MultilingualTemplateForm = ({ template, onSave, onCancel }) => {
     const [name, setName] = (0,react__WEBPACK_IMPORTED_MODULE_1__.useState)((template === null || template === void 0 ? void 0 : template.name) || '');
     const [category, setCategory] = (0,react__WEBPACK_IMPORTED_MODULE_1__.useState)((template === null || template === void 0 ? void 0 : template.category) || 'General');
     const [content, setContent] = (0,react__WEBPACK_IMPORTED_MODULE_1__.useState)((template === null || template === void 0 ? void 0 : template.content) || '');
     const [language, setLanguage] = (0,react__WEBPACK_IMPORTED_MODULE_1__.useState)((template === null || template === void 0 ? void 0 : template.language) || 'EN');
     const [variables, setVariables] = (0,react__WEBPACK_IMPORTED_MODULE_1__.useState)([]);
+    const [templateGroup, setTemplateGroup] = (0,react__WEBPACK_IMPORTED_MODULE_1__.useState)(null);
+    const [loading, setLoading] = (0,react__WEBPACK_IMPORTED_MODULE_1__.useState)(false);
+    const [error, setError] = (0,react__WEBPACK_IMPORTED_MODULE_1__.useState)(null);
+    // Load template group data (all language versions of this template)
+    (0,react__WEBPACK_IMPORTED_MODULE_1__.useEffect)(() => {
+        const loadTemplateGroup = () => __awaiter(void 0, void 0, void 0, function* () {
+            if (!template)
+                return;
+            setLoading(true);
+            try {
+                const allTemplates = yield _services_storage__WEBPACK_IMPORTED_MODULE_3__.storageService.getTemplates();
+                // Find all templates with the same baseId
+                const relatedTemplates = allTemplates.filter(t => t.baseId === template.baseId);
+                // Create a template group
+                const group = {
+                    baseId: template.baseId,
+                    name: template.name,
+                    category: template.category,
+                    templates: {
+                        'EN': null,
+                        'FR': null,
+                        'DE': null
+                    },
+                    variables: template.variables
+                };
+                // Add each template to its language slot
+                relatedTemplates.forEach(t => {
+                    const lang = t.language || 'EN';
+                    if (lang === 'EN' || lang === 'FR' || lang === 'DE') {
+                        group.templates[lang] = t;
+                    }
+                });
+                setTemplateGroup(group);
+            }
+            catch (err) {
+                setError('Failed to load template translations');
+                console.error(err);
+            }
+            finally {
+                setLoading(false);
+            }
+        });
+        loadTemplateGroup();
+    }, [template]);
     // Extract variables when content changes
     (0,react__WEBPACK_IMPORTED_MODULE_1__.useEffect)(() => {
         if (content) {
@@ -35388,22 +35443,77 @@ const TemplateForm = ({ template, onSave, onCancel }) => {
             setVariables([]);
         }
     }, [content]);
-    const handleSubmit = (e) => {
+    // Handle switching between language versions
+    const handleLanguageChange = (lang) => {
+        if (!templateGroup)
+            return;
+        // Check if we're editing an existing translation
+        if (template && templateGroup.templates[lang]) {
+            // We have a translation in this language, navigate to it
+            const selectedTemplate = templateGroup.templates[lang];
+            if (selectedTemplate) {
+                // Instead of updating state, we'll navigate to the other template
+                if (confirm('Switch to the existing translation in this language?')) {
+                    // Tell the parent to change the template being edited
+                    // This requires a callback to be passed from the parent
+                    window.location.href = `?edit=${selectedTemplate.id}`;
+                    return;
+                }
+            }
+        }
+        // We're creating a new translation or the user canceled navigation
+        setLanguage(lang);
+    };
+    const handleSubmit = (e) => __awaiter(void 0, void 0, void 0, function* () {
         e.preventDefault();
         if (!name || !category || !content) {
             alert('Please fill in all required fields');
             return;
         }
-        onSave({
-            name,
-            category,
-            content,
-            language
-        });
+        // Check if we're trying to create a duplicate language version
+        if (templateGroup && !template && templateGroup.templates[language]) {
+            alert(`A ${language} translation already exists for this template. Please select a different language.`);
+            return;
+        }
+        try {
+            onSave({
+                name,
+                category,
+                content,
+                language
+            });
+        }
+        catch (err) {
+            alert('Failed to save template: ' + err.message);
+        }
+    });
+    // Get available languages (those that don't already have a template)
+    const getAvailableLanguages = () => {
+        if (!template || !templateGroup) {
+            return ['EN', 'FR', 'DE'];
+        }
+        return ['EN', 'FR', 'DE'].filter(lang => { var _a; return !templateGroup.templates[lang] || ((_a = templateGroup.templates[lang]) === null || _a === void 0 ? void 0 : _a.id) === template.id; });
     };
-    return ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("form", { onSubmit: handleSubmit, className: "space-y-4", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { className: "block text-sm font-medium text-gray-700 mb-1", children: "Template Name*" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("input", { type: "text", value: name, onChange: (e) => setName(e.target.value), className: "w-full px-3 py-2 border rounded", placeholder: "e.g., Welcome Response", required: true })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { className: "block text-sm font-medium text-gray-700 mb-1", children: "Category*" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("input", { type: "text", value: category, onChange: (e) => setCategory(e.target.value), className: "w-full px-3 py-2 border rounded", placeholder: "e.g., General, Technical, Billing", required: true })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { className: "block text-sm font-medium text-gray-700 mb-1", children: "Language" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("select", { value: language, onChange: (e) => setLanguage(e.target.value), className: "w-full px-3 py-2 border rounded", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("option", { value: "EN", children: "English" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("option", { value: "FR", children: "French" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("option", { value: "DE", children: "German" })] })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { className: "block text-sm font-medium text-gray-700 mb-1", children: "Template Content*" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("textarea", { value: content, onChange: (e) => setContent(e.target.value), className: "w-full px-3 py-2 border rounded font-mono", rows: 10, placeholder: "Hi {{customerName}},\\n\\nThank you for contacting us about {{issue}}.\\n\\nBest regards,\\n{{agentName}}", required: true }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("p", { className: "text-sm text-gray-500 mt-1", children: ["Use ", "{{variableName}}", " syntax for dynamic content"] })] }), variables.length > 0 && ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("h3", { className: "text-sm font-medium text-gray-700 mb-1", children: "Detected Variables:" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { className: "flex flex-wrap gap-2", children: variables.map(variable => ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("span", { className: "px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs", children: variable }, variable))) })] })), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "flex justify-end space-x-2 pt-4", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("button", { type: "button", onClick: onCancel, className: "px-4 py-2 border rounded hover:bg-gray-100", children: "Cancel" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("button", { type: "submit", className: "px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600", children: template ? 'Update Template' : 'Create Template' })] })] }));
+    // Check if this is a new template or a translation of an existing one
+    const isNewTemplate = !template;
+    const isEditingExistingTranslation = template && templateGroup && Object.values(templateGroup.templates).filter(t => t !== null).length > 1;
+    // Determine if name/category should be editable
+    const isNameEditable = isNewTemplate || (template && !isEditingExistingTranslation);
+    const isCategoryEditable = isNameEditable;
+    return ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("form", { onSubmit: handleSubmit, className: "space-y-4", children: [loading && (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { className: "text-center py-4", children: "Loading template data..." }), error && ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4", children: ["Error: ", error] })), templateGroup && ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "mb-4 p-4 bg-blue-50 rounded", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("h3", { className: "font-medium text-blue-800 mb-2", children: "Available Translations" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { className: "flex gap-2", children: ['EN', 'FR', 'DE'].map(lang => {
+                            const hasTranslation = templateGroup.templates[lang] !== null;
+                            const isCurrentLanguage = (template === null || template === void 0 ? void 0 : template.language) === lang;
+                            return ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("button", { type: "button", onClick: () => handleLanguageChange(lang), className: `px-3 py-1 rounded-full text-xs font-medium 
+                    ${isCurrentLanguage
+                                    ? 'bg-blue-500 text-white'
+                                    : hasTranslation
+                                        ? 'bg-green-100 text-green-800 hover:bg-green-200'
+                                        : 'bg-gray-200 text-gray-600 hover:bg-gray-300'}`, disabled: isCurrentLanguage, children: [lang === 'EN' ? 'English' : lang === 'FR' ? 'French' : 'German', hasTranslation && ' ✓'] }, lang));
+                        }) }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("p", { className: "text-xs text-blue-600 mt-2", children: isEditingExistingTranslation
+                            ? 'This template has translations. Name and category are shared across all translations.'
+                            : 'You can add translations after saving this template.' })] })), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { className: "block text-sm font-medium text-gray-700 mb-1", children: "Template Name*" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("input", { type: "text", value: name, onChange: (e) => setName(e.target.value), className: `w-full px-3 py-2 border rounded ${!isNameEditable ? 'bg-gray-100' : ''}`, placeholder: "e.g., Welcome Response", required: true, disabled: !isNameEditable }), !isNameEditable && ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("p", { className: "text-xs text-gray-500 mt-1", children: "Template name is shared across all translations." }))] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { className: "block text-sm font-medium text-gray-700 mb-1", children: "Category*" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("input", { type: "text", value: category, onChange: (e) => setCategory(e.target.value), className: `w-full px-3 py-2 border rounded ${!isCategoryEditable ? 'bg-gray-100' : ''}`, placeholder: "e.g., General, Technical, Billing", required: true, disabled: !isCategoryEditable }), !isCategoryEditable && ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("p", { className: "text-xs text-gray-500 mt-1", children: "Category is shared across all translations." }))] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { className: "block text-sm font-medium text-gray-700 mb-1", children: "Language*" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("select", { value: language, onChange: (e) => setLanguage(e.target.value), className: "w-full px-3 py-2 border rounded", disabled: !!template, children: getAvailableLanguages().map(lang => ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("option", { value: lang, children: lang === 'EN' ? 'English' : lang === 'FR' ? 'French' : 'German' }, lang))) }), !!template && ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("p", { className: "text-xs text-gray-500 mt-1", children: "Language cannot be changed for existing templates. Create a new translation instead." }))] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { className: "block text-sm font-medium text-gray-700 mb-1", children: "Template Content*" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("textarea", { value: content, onChange: (e) => setContent(e.target.value), className: "w-full px-3 py-2 border rounded font-mono", rows: 10, placeholder: "Hi {{customerName}},\\n\\nThank you for contacting us about {{issue}}.\\n\\nBest regards,\\n{{agentName}}", required: true }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("p", { className: "text-sm text-gray-500 mt-1", children: ["Use ", "{{variableName}}", " syntax for dynamic content"] })] }), variables.length > 0 && ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("h3", { className: "text-sm font-medium text-gray-700 mb-1", children: "Detected Variables:" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { className: "flex flex-wrap gap-2", children: variables.map(variable => ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("span", { className: "px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs", children: variable }, variable))) }), isEditingExistingTranslation && ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("p", { className: "text-xs text-blue-600 mt-2", children: "Try to keep the same variables across all translations for consistent functionality." }))] })), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "flex justify-end space-x-2 pt-4", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("button", { type: "button", onClick: onCancel, className: "px-4 py-2 border rounded hover:bg-gray-100", children: "Cancel" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("button", { type: "submit", className: "px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600", children: template ? 'Update Template' : 'Create Template' })] })] }));
 };
-/* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = (TemplateForm);
+/* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = (MultilingualTemplateForm);
 
 
 /***/ }),
@@ -35420,14 +35530,29 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ });
 /* harmony import */ var react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! react/jsx-runtime */ "./node_modules/react/jsx-runtime.js");
 
-const TemplateItem = ({ template, onEdit, onDelete, onCopy }) => {
-    return ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("tr", { children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("td", { className: "px-6 py-4 whitespace-nowrap", children: (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { className: "font-medium text-gray-900", children: template.name }) }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("td", { className: "px-6 py-4 whitespace-nowrap", children: (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "flex items-center space-x-2", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("span", { className: "px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800", children: template.category }), template.language && ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("span", { className: `px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${template.language === 'EN' ? 'bg-green-100 text-green-800' :
-                                template.language === 'FR' ? 'bg-purple-100 text-purple-800' :
-                                    template.language === 'DE' ? 'bg-orange-100 text-orange-800' :
-                                        'bg-gray-100 text-gray-800'}`, children: template.language }))] }) }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("td", { className: "px-6 py-4", children: (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "text-sm text-gray-900 line-clamp-2", children: [template.content.substring(0, 100), template.content.length > 100 ? '...' : ''] }) }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("td", { className: "px-6 py-4", children: (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { className: "text-sm text-gray-500", children: template.variables.length > 0 ? ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("span", { className: "text-xs", children: template.variables.map((v) => v.name).join(', ') })) : ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("span", { className: "text-xs italic", children: "No variables" })) }) }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("td", { className: "px-6 py-4 whitespace-nowrap text-right text-sm font-medium", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("button", { className: "text-green-600 hover:text-green-900 mr-3", onClick: (e) => onCopy(template, e), children: "Copy" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("button", { className: "text-blue-600 hover:text-blue-900 mr-3", onClick: (e) => {
+const TemplateItem = ({ template, onEdit, onDelete, onCopy, onTranslate, allTemplates }) => {
+    // Find all translations of this template
+    const translations = allTemplates.filter(t => t.name === template.name &&
+        t.id !== template.id);
+    // Get all available languages for this template
+    const availableLanguages = [
+        template.language || 'EN',
+        ...translations.map(t => t.language || 'EN')
+    ];
+    return ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("tr", { children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("td", { className: "px-6 py-4 whitespace-nowrap", children: (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { className: "font-medium text-gray-900", children: template.name }) }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("td", { className: "px-6 py-4 whitespace-nowrap", children: (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "flex flex-col space-y-2", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("span", { className: "px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800", children: template.category }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "flex flex-wrap gap-1 mt-1", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("span", { className: `px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${template.language === 'EN' ? 'bg-green-100 text-green-800' :
+                                        template.language === 'FR' ? 'bg-purple-100 text-purple-800' :
+                                            template.language === 'DE' ? 'bg-orange-100 text-orange-800' :
+                                                'bg-green-100 text-green-800' // Default to English styling if no language
+                                    }`, children: template.language || 'EN' }), translations.length > 0 && ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "flex items-center gap-1", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("span", { className: "text-xs text-gray-500", children: "+" }), translations.map(t => ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("span", { className: `px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${t.language === 'EN' ? 'bg-green-100 text-green-800' :
+                                                t.language === 'FR' ? 'bg-purple-100 text-purple-800' :
+                                                    t.language === 'DE' ? 'bg-orange-100 text-orange-800' :
+                                                        'bg-green-100 text-green-800'}`, title: `Click 'Translate' to edit this translation`, children: t.language || 'EN' }, t.id)))] }))] })] }) }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("td", { className: "px-6 py-4", children: (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "text-sm text-gray-900 line-clamp-2", children: [template.content.substring(0, 100), template.content.length > 100 ? '...' : ''] }) }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("td", { className: "px-6 py-4", children: (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { className: "text-sm text-gray-500", children: template.variables.length > 0 ? ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("span", { className: "text-xs", children: template.variables.map((v) => v.name).join(', ') })) : ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("span", { className: "text-xs italic", children: "No variables" })) }) }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("td", { className: "px-6 py-4 whitespace-nowrap text-right text-sm font-medium", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("button", { className: "text-green-600 hover:text-green-900 mr-3", onClick: (e) => onCopy(template, e), children: "Copy" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("button", { className: "text-blue-600 hover:text-blue-900 mr-3", onClick: (e) => {
                             e.stopPropagation();
                             onEdit(template);
-                        }, children: "Edit" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("button", { className: "text-red-600 hover:text-red-900", onClick: (e) => {
+                        }, children: "Edit" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("button", { className: "text-purple-600 hover:text-purple-900 mr-3", onClick: (e) => {
+                            e.stopPropagation();
+                            onTranslate(template);
+                        }, children: "Translate" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("button", { className: "text-red-600 hover:text-red-900", onClick: (e) => {
                             e.stopPropagation();
                             if (confirm('Are you sure you want to delete this template?')) {
                                 onDelete(template.id);
@@ -35435,6 +35560,69 @@ const TemplateItem = ({ template, onEdit, onDelete, onCopy }) => {
                         }, children: "Delete" })] })] }));
 };
 /* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = (TemplateItem);
+
+
+/***/ }),
+
+/***/ "./src/components/TemplateLanguageOverview.tsx":
+/*!*****************************************************!*\
+  !*** ./src/components/TemplateLanguageOverview.tsx ***!
+  \*****************************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "default": () => (__WEBPACK_DEFAULT_EXPORT__)
+/* harmony export */ });
+/* harmony import */ var react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! react/jsx-runtime */ "./node_modules/react/jsx-runtime.js");
+/* harmony import */ var react__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! react */ "./node_modules/react/index.js");
+/* harmony import */ var react__WEBPACK_IMPORTED_MODULE_1___default = /*#__PURE__*/__webpack_require__.n(react__WEBPACK_IMPORTED_MODULE_1__);
+
+
+const TemplateLanguageOverview = ({ templateGroups, onSelectTemplate, onAddTranslation }) => {
+    const [searchTerm, setSearchTerm] = (0,react__WEBPACK_IMPORTED_MODULE_1__.useState)('');
+    const [categoryFilter, setCategoryFilter] = (0,react__WEBPACK_IMPORTED_MODULE_1__.useState)('');
+    // Get all unique categories from template groups
+    const categories = [...new Set(templateGroups.map(group => group.category))].sort();
+    // Filter template groups by search term and category
+    const filteredGroups = templateGroups.filter(group => {
+        // Filter by search term
+        const matchesSearch = group.name.toLowerCase().includes(searchTerm.toLowerCase());
+        // Filter by category
+        const matchesCategory = categoryFilter === '' || group.category === categoryFilter;
+        return matchesSearch && matchesCategory;
+    }).sort((a, b) => a.name.localeCompare(b.name));
+    // Helper function to get a display name for a language
+    const getLanguageName = (code) => {
+        return code === 'EN' ? 'English' : code === 'FR' ? 'French' : 'German';
+    };
+    // Helper function to get CSS class for a language badge
+    const getLanguageClass = (code) => {
+        return code === 'EN'
+            ? 'bg-green-100 text-green-800'
+            : code === 'FR'
+                ? 'bg-purple-100 text-purple-800'
+                : 'bg-orange-100 text-orange-800';
+    };
+    return ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "space-y-6", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "flex flex-wrap gap-4 mb-4", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { className: "flex-1", children: (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("input", { type: "text", placeholder: "Search templates...", className: "w-full px-3 py-2 border rounded", value: searchTerm, onChange: e => setSearchTerm(e.target.value) }) }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("select", { className: "px-3 py-2 border rounded w-48", value: categoryFilter, onChange: e => setCategoryFilter(e.target.value), children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("option", { value: "", children: "All Categories" }), categories.map(category => ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("option", { value: category, children: category }, category)))] })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { className: "bg-white shadow-md rounded", children: (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("table", { className: "min-w-full divide-y divide-gray-200", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("thead", { className: "bg-gray-50", children: (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("tr", { children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("th", { className: "px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider", children: "Template Name" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("th", { className: "px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider", children: "Category" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("th", { className: "px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider", children: "Available Languages" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("th", { className: "px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider", children: "Missing Languages" })] }) }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("tbody", { className: "bg-white divide-y divide-gray-200", children: filteredGroups.map(group => {
+                                // Get available languages
+                                const availableLanguages = ['EN', 'FR', 'DE'].filter(lang => group.templates[lang] !== null);
+                                // Get missing languages
+                                const missingLanguages = ['EN', 'FR', 'DE'].filter(lang => group.templates[lang] === null);
+                                // Find primary template (English or first available)
+                                const primaryTemplate = group.templates['EN'] ||
+                                    (availableLanguages.length > 0 ? group.templates[availableLanguages[0]] : null);
+                                if (!primaryTemplate)
+                                    return null; // Skip if no template is available
+                                return ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("tr", { className: "hover:bg-gray-50", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("td", { className: "px-6 py-4", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { className: "font-medium text-gray-900", children: group.name }), primaryTemplate && ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "text-sm text-gray-500 mt-1 line-clamp-1", children: [primaryTemplate.content.substring(0, 80), primaryTemplate.content.length > 80 ? '...' : ''] }))] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("td", { className: "px-6 py-4 whitespace-nowrap", children: (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("span", { className: "px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800", children: group.category }) }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("td", { className: "px-6 py-4", children: (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { className: "flex flex-wrap gap-1", children: availableLanguages.map(lang => {
+                                                    const template = group.templates[lang];
+                                                    if (!template)
+                                                        return null;
+                                                    return ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("button", { className: `px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full cursor-pointer ${getLanguageClass(lang)}`, onClick: () => onSelectTemplate(template.id), children: getLanguageName(lang) }, lang));
+                                                }) }) }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("td", { className: "px-6 py-4", children: missingLanguages.length > 0 ? ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { className: "flex flex-wrap gap-1", children: missingLanguages.map(lang => ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("button", { className: "px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full cursor-pointer bg-gray-200 text-gray-600 hover:bg-gray-300", onClick: () => onAddTranslation(group.baseId, lang), children: ["+ Add ", getLanguageName(lang)] }, lang))) })) : ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("span", { className: "text-xs text-green-600", children: "All languages available" })) })] }, group.baseId));
+                            }) })] }) }), filteredGroups.length === 0 && ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { className: "text-center py-8 bg-white shadow-md rounded", children: (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("p", { className: "text-gray-500", children: "No templates found matching your criteria." }) }))] }));
+};
+/* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = (TemplateLanguageOverview);
 
 
 /***/ }),
@@ -35453,11 +35641,11 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _TemplateItem__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./TemplateItem */ "./src/components/TemplateItem.tsx");
 
 
-const TemplateList = ({ templates, onEdit, onDelete, onCopy }) => {
+const TemplateList = ({ templates, allTemplates, onEdit, onDelete, onCopy, onTranslate }) => {
     if (templates.length === 0) {
         return ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bg-white shadow-md rounded p-12 text-center", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("p", { className: "text-gray-500 mb-4", children: "No templates found" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("button", { className: "px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600", onClick: () => onEdit({}), children: "Create Your First Template" })] }));
     }
-    return ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { className: "bg-white shadow-md rounded overflow-hidden", children: (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("table", { className: "min-w-full divide-y divide-gray-200", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("thead", { className: "bg-gray-50", children: (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("tr", { children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("th", { className: "px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider", children: "Name" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("th", { className: "px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider", children: "Category/Language" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("th", { className: "px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider", children: "Content Preview" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("th", { className: "px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider", children: "Variables" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("th", { className: "px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider", children: "Actions" })] }) }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("tbody", { className: "bg-white divide-y divide-gray-200", children: templates.map(template => ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(_TemplateItem__WEBPACK_IMPORTED_MODULE_1__["default"], { template: template, onEdit: onEdit, onDelete: onDelete, onCopy: onCopy }, template.id))) })] }) }));
+    return ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { className: "bg-white shadow-md rounded overflow-hidden", children: (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("table", { className: "min-w-full divide-y divide-gray-200", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("thead", { className: "bg-gray-50", children: (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("tr", { children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("th", { className: "px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider", children: "Name" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("th", { className: "px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider", children: "Category/Language" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("th", { className: "px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider", children: "Content Preview" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("th", { className: "px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider", children: "Variables" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("th", { className: "px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider", children: "Actions" })] }) }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("tbody", { className: "bg-white divide-y divide-gray-200", children: templates.map(template => ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(_TemplateItem__WEBPACK_IMPORTED_MODULE_1__["default"], { template: template, allTemplates: allTemplates, onEdit: onEdit, onDelete: onDelete, onCopy: onCopy, onTranslate: onTranslate }, template.id))) })] }) }));
 };
 /* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = (TemplateList);
 
@@ -35529,6 +35717,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
 /* harmony export */   GLOBAL_VARIABLES_KEY: () => (/* binding */ GLOBAL_VARIABLES_KEY),
 /* harmony export */   STORAGE_KEY: () => (/* binding */ STORAGE_KEY),
+/* harmony export */   "default": () => (__WEBPACK_DEFAULT_EXPORT__),
 /* harmony export */   storageService: () => (/* binding */ storageService)
 /* harmony export */ });
 var __awaiter = (undefined && undefined.__awaiter) || function (thisArg, _arguments, P, generator) {
@@ -35551,6 +35740,32 @@ const storageService = {
             });
         });
     },
+    // Get template groups (templates organized by baseId)
+    getTemplateGroups: () => __awaiter(void 0, void 0, void 0, function* () {
+        const templates = yield storageService.getTemplates();
+        const groupsMap = {};
+        // Group templates by baseId
+        templates.forEach(template => {
+            const baseId = template.baseId || template.id;
+            if (!groupsMap[baseId]) {
+                groupsMap[baseId] = {
+                    baseId,
+                    name: template.name,
+                    category: template.category,
+                    templates: {
+                        'EN': null,
+                        'FR': null,
+                        'DE': null
+                    },
+                    variables: template.variables
+                };
+            }
+            // Add the template to its language slot
+            const language = template.language || 'EN';
+            groupsMap[baseId].templates[language] = template;
+        });
+        return Object.values(groupsMap);
+    }),
     // Save templates
     saveTemplates: (templates) => {
         return new Promise((resolve) => {
@@ -35563,9 +35778,44 @@ const storageService = {
     addTemplate: (template) => __awaiter(void 0, void 0, void 0, function* () {
         const templates = yield storageService.getTemplates();
         const timestamp = Date.now();
-        const newTemplate = Object.assign(Object.assign({}, template), { id: crypto.randomUUID(), createdAt: timestamp, updatedAt: timestamp });
+        const newId = crypto.randomUUID();
+        // Check if this is a new template or a translation
+        // We'll determine if it's a translation by checking if a template with the same name already exists
+        const existingTemplate = templates.find(t => t.name === template.name);
+        const baseId = existingTemplate ? existingTemplate.baseId : newId;
+        // Check if a template with this language already exists
+        const duplicateLanguage = templates.find(t => t.baseId === baseId &&
+            t.language === template.language);
+        if (duplicateLanguage) {
+            throw new Error(`A template in ${template.language} already exists for "${template.name}"`);
+        }
+        const newTemplate = Object.assign(Object.assign({}, template), { id: newId, baseId, createdAt: timestamp, updatedAt: timestamp });
         yield storageService.saveTemplates([...templates, newTemplate]);
         return newTemplate;
+    }),
+    // Add a translation to an existing template
+    addTranslation: (baseTemplate, language, content) => __awaiter(void 0, void 0, void 0, function* () {
+        const templates = yield storageService.getTemplates();
+        const timestamp = Date.now();
+        // Check if a translation in this language already exists
+        const existingTranslation = templates.find(t => t.baseId === baseTemplate.baseId &&
+            t.language === language);
+        if (existingTranslation) {
+            throw new Error(`A translation in ${language} already exists for "${baseTemplate.name}"`);
+        }
+        const newTranslation = {
+            id: crypto.randomUUID(),
+            baseId: baseTemplate.baseId,
+            name: baseTemplate.name,
+            category: baseTemplate.category,
+            content,
+            variables: baseTemplate.variables,
+            language,
+            createdAt: timestamp,
+            updatedAt: timestamp
+        };
+        yield storageService.saveTemplates([...templates, newTranslation]);
+        return newTranslation;
     }),
     // Update existing template
     updateTemplate: (id, updates) => __awaiter(void 0, void 0, void 0, function* () {
@@ -35573,8 +35823,26 @@ const storageService = {
         const index = templates.findIndex(t => t.id === id);
         if (index === -1)
             return null;
-        const updatedTemplate = Object.assign(Object.assign(Object.assign({}, templates[index]), updates), { updatedAt: Date.now() });
+        const templateToUpdate = templates[index];
+        // If changing the language, check if there's already a template in that language
+        if (updates.language && updates.language !== templateToUpdate.language) {
+            const duplicateLanguage = templates.find(t => t.baseId === templateToUpdate.baseId &&
+                t.language === updates.language &&
+                t.id !== id);
+            if (duplicateLanguage) {
+                throw new Error(`A template in ${updates.language} already exists for "${templateToUpdate.name}"`);
+            }
+        }
+        const updatedTemplate = Object.assign(Object.assign(Object.assign({}, templateToUpdate), updates), { updatedAt: Date.now() });
         templates[index] = updatedTemplate;
+        // If name or category is updated, update all templates with the same baseId
+        if (updates.name || updates.category) {
+            for (let i = 0; i < templates.length; i++) {
+                if (templates[i].baseId === templateToUpdate.baseId && i !== index) {
+                    templates[i] = Object.assign(Object.assign({}, templates[i]), { name: updates.name || templates[i].name, category: updates.category || templates[i].category, updatedAt: Date.now() });
+                }
+            }
+        }
         yield storageService.saveTemplates(templates);
         return updatedTemplate;
     }),
@@ -35582,6 +35850,15 @@ const storageService = {
     deleteTemplate: (id) => __awaiter(void 0, void 0, void 0, function* () {
         const templates = yield storageService.getTemplates();
         const filteredTemplates = templates.filter(t => t.id !== id);
+        if (filteredTemplates.length === templates.length)
+            return false;
+        yield storageService.saveTemplates(filteredTemplates);
+        return true;
+    }),
+    // Delete all templates with the same baseId
+    deleteTemplateGroup: (baseId) => __awaiter(void 0, void 0, void 0, function* () {
+        const templates = yield storageService.getTemplates();
+        const filteredTemplates = templates.filter(t => t.baseId !== baseId);
         if (filteredTemplates.length === templates.length)
             return false;
         yield storageService.saveTemplates(filteredTemplates);
@@ -35637,13 +35914,32 @@ const storageService = {
     // Import data (templates and global variables)
     importData: (data) => __awaiter(void 0, void 0, void 0, function* () {
         if (data.templates) {
-            yield storageService.saveTemplates(data.templates);
+            // Make sure all templates have a baseId (for backwards compatibility)
+            const templatesWithBaseId = data.templates.map(template => (Object.assign(Object.assign({}, template), { baseId: template.baseId || template.id })));
+            yield storageService.saveTemplates(templatesWithBaseId);
         }
         if (data.globalVariables) {
             yield storageService.saveGlobalVariables(data.globalVariables);
         }
+    }),
+    // Migrate existing templates to the new structure with baseId
+    migrateTemplates: () => __awaiter(void 0, void 0, void 0, function* () {
+        const templates = yield storageService.getTemplates();
+        let needsMigration = false;
+        // Check if any template is missing a baseId
+        const migratedTemplates = templates.map(template => {
+            if (!template.baseId) {
+                needsMigration = true;
+                return Object.assign(Object.assign({}, template), { baseId: template.id });
+            }
+            return template;
+        });
+        if (needsMigration) {
+            yield storageService.saveTemplates(migratedTemplates);
+        }
     })
 };
+/* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = (storageService);
 
 
 /***/ }),
@@ -35767,6 +36063,117 @@ const showNotification = (message, type = 'info', duration = 2000) => {
         }, 300);
     }, duration);
 };
+
+
+/***/ }),
+
+/***/ "./src/utils/migrationUtils.ts":
+/*!*************************************!*\
+  !*** ./src/utils/migrationUtils.ts ***!
+  \*************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   checkMigrationNeeded: () => (/* binding */ checkMigrationNeeded),
+/* harmony export */   migrateToMultilingualStructure: () => (/* binding */ migrateToMultilingualStructure)
+/* harmony export */ });
+/* harmony import */ var _services_storage__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../services/storage */ "./src/services/storage.ts");
+var __awaiter = (undefined && undefined.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+
+/**
+ * Migrate existing templates to the new structure with baseId
+ * Organizes templates with the same name as translations of each other
+ */
+const migrateToMultilingualStructure = () => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const templates = yield _services_storage__WEBPACK_IMPORTED_MODULE_0__.storageService.getTemplates();
+        let needsMigration = false;
+        // Step 1: Add baseId to any templates missing it
+        const templatesWithBaseId = templates.map(template => {
+            if (!template.baseId) {
+                needsMigration = true;
+                return Object.assign(Object.assign({}, template), { baseId: template.id });
+            }
+            return template;
+        });
+        if (!needsMigration) {
+            // Skip if all templates already have baseId
+            console.log('All templates already have baseId, no migration needed');
+            return;
+        }
+        // Step 2: Group templates by name to find potential translations
+        const templatesByName = {};
+        templatesWithBaseId.forEach(template => {
+            if (!templatesByName[template.name]) {
+                templatesByName[template.name] = [];
+            }
+            templatesByName[template.name].push(template);
+        });
+        // Step 3: For each group, set the same baseId for all templates with the same name
+        const migratedTemplates = [];
+        Object.values(templatesByName).forEach(group => {
+            if (group.length > 1) {
+                // Multiple templates with the same name - potential translations
+                // Use the oldest template's id as the baseId for all
+                const sortedByDate = [...group].sort((a, b) => a.createdAt - b.createdAt);
+                const baseTemplate = sortedByDate[0];
+                // Check for language conflicts (multiple templates with the same language)
+                const languageCount = {};
+                group.forEach(t => {
+                    const lang = t.language || 'EN';
+                    languageCount[lang] = (languageCount[lang] || 0) + 1;
+                });
+                // Resolve language conflicts by appending a number to duplicates
+                const processedLanguages = {};
+                sortedByDate.forEach(template => {
+                    const baseId = baseTemplate.id;
+                    let language = template.language || 'EN';
+                    // If there are multiple templates with this language, add a suffix to all but the first one
+                    processedLanguages[language] = (processedLanguages[language] || 0) + 1;
+                    if (processedLanguages[language] > 1 && languageCount[language] > 1) {
+                        // This is a duplicate language - we need to modify the template
+                        // We'll add a number suffix to the name to distinguish it
+                        const suffix = ` (${language} ${processedLanguages[language]})`;
+                        migratedTemplates.push(Object.assign(Object.assign({}, template), { baseId, name: template.name + suffix }));
+                    }
+                    else {
+                        // This is the first template with this language, or the only one
+                        migratedTemplates.push(Object.assign(Object.assign({}, template), { baseId }));
+                    }
+                });
+            }
+            else {
+                // Only one template with this name, just add it to the result
+                migratedTemplates.push(group[0]);
+            }
+        });
+        // Save the migrated templates
+        console.log(`Migrating ${templates.length} templates to new structure`);
+        yield _services_storage__WEBPACK_IMPORTED_MODULE_0__.storageService.saveTemplates(migratedTemplates);
+        console.log('Migration completed successfully');
+    }
+    catch (error) {
+        console.error('Migration failed:', error);
+        throw error;
+    }
+});
+/**
+ * Check if migration is needed
+ */
+const checkMigrationNeeded = () => __awaiter(void 0, void 0, void 0, function* () {
+    const templates = yield _services_storage__WEBPACK_IMPORTED_MODULE_0__.storageService.getTemplates();
+    // Check if any template is missing a baseId
+    return templates.some(template => !template.baseId);
+});
 
 
 /***/ }),
@@ -35943,11 +36350,13 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var react_dom_client__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! react-dom/client */ "./node_modules/react-dom/client.js");
 /* harmony import */ var _services_storage__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ./services/storage */ "./src/services/storage.ts");
 /* harmony import */ var _utils_parser__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ./utils/parser */ "./src/utils/parser.ts");
-/* harmony import */ var _components_GlobalVariablesManager__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ./components/GlobalVariablesManager */ "./src/components/GlobalVariablesManager.tsx");
-/* harmony import */ var _components_TemplateForm__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! ./components/TemplateForm */ "./src/components/TemplateForm.tsx");
-/* harmony import */ var _components_TemplateList__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! ./components/TemplateList */ "./src/components/TemplateList.tsx");
-/* harmony import */ var _components_VariableModal__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! ./components/VariableModal */ "./src/components/VariableModal.tsx");
-/* harmony import */ var _assets_styles_css__WEBPACK_IMPORTED_MODULE_9__ = __webpack_require__(/*! ./assets/styles.css */ "./src/assets/styles.css");
+/* harmony import */ var _utils_migrationUtils__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ./utils/migrationUtils */ "./src/utils/migrationUtils.ts");
+/* harmony import */ var _components_GlobalVariablesManager__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! ./components/GlobalVariablesManager */ "./src/components/GlobalVariablesManager.tsx");
+/* harmony import */ var _components_MultilingualTemplateForm__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! ./components/MultilingualTemplateForm */ "./src/components/MultilingualTemplateForm.tsx");
+/* harmony import */ var _components_TemplateList__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! ./components/TemplateList */ "./src/components/TemplateList.tsx");
+/* harmony import */ var _components_VariableModal__WEBPACK_IMPORTED_MODULE_9__ = __webpack_require__(/*! ./components/VariableModal */ "./src/components/VariableModal.tsx");
+/* harmony import */ var _components_TemplateLanguageOverview__WEBPACK_IMPORTED_MODULE_10__ = __webpack_require__(/*! ./components/TemplateLanguageOverview */ "./src/components/TemplateLanguageOverview.tsx");
+/* harmony import */ var _assets_styles_css__WEBPACK_IMPORTED_MODULE_11__ = __webpack_require__(/*! ./assets/styles.css */ "./src/assets/styles.css");
 var __awaiter = (undefined && undefined.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -35967,12 +36376,17 @@ var __awaiter = (undefined && undefined.__awaiter) || function (thisArg, _argume
 
 
 
+
+
 // Options Page Component
 const Options = () => {
     const [templates, setTemplates] = (0,react__WEBPACK_IMPORTED_MODULE_1__.useState)([]);
+    const [templateGroups, setTemplateGroups] = (0,react__WEBPACK_IMPORTED_MODULE_1__.useState)([]);
     const [globalVariables, setGlobalVariables] = (0,react__WEBPACK_IMPORTED_MODULE_1__.useState)([]);
     const [loading, setLoading] = (0,react__WEBPACK_IMPORTED_MODULE_1__.useState)(true);
     const [error, setError] = (0,react__WEBPACK_IMPORTED_MODULE_1__.useState)(null);
+    const [migrationNeeded, setMigrationNeeded] = (0,react__WEBPACK_IMPORTED_MODULE_1__.useState)(false);
+    const [migrationInProgress, setMigrationInProgress] = (0,react__WEBPACK_IMPORTED_MODULE_1__.useState)(false);
     const [activeTab, setActiveTab] = (0,react__WEBPACK_IMPORTED_MODULE_1__.useState)('templates');
     // Current editing state
     const [currentTemplate, setCurrentTemplate] = (0,react__WEBPACK_IMPORTED_MODULE_1__.useState)(null);
@@ -35987,16 +36401,47 @@ const Options = () => {
     // Search and filter state
     const [searchTerm, setSearchTerm] = (0,react__WEBPACK_IMPORTED_MODULE_1__.useState)('');
     const [languageFilter, setLanguageFilter] = (0,react__WEBPACK_IMPORTED_MODULE_1__.useState)('ALL');
+    const [groupTranslations, setGroupTranslations] = (0,react__WEBPACK_IMPORTED_MODULE_1__.useState)(true);
+    // Check if migration is needed
+    (0,react__WEBPACK_IMPORTED_MODULE_1__.useEffect)(() => {
+        const checkMigration = () => __awaiter(void 0, void 0, void 0, function* () {
+            try {
+                const needsMigration = yield (0,_utils_migrationUtils__WEBPACK_IMPORTED_MODULE_5__.checkMigrationNeeded)();
+                setMigrationNeeded(needsMigration);
+            }
+            catch (err) {
+                console.error('Failed to check migration status:', err);
+            }
+        });
+        checkMigration();
+    }, []);
+    // Run migration if needed
+    const handleRunMigration = () => __awaiter(void 0, void 0, void 0, function* () {
+        try {
+            setMigrationInProgress(true);
+            yield (0,_utils_migrationUtils__WEBPACK_IMPORTED_MODULE_5__.migrateToMultilingualStructure)();
+            setMigrationNeeded(false);
+            yield loadTemplates();
+        }
+        catch (err) {
+            setError('Migration failed: ' + err.message);
+        }
+        finally {
+            setMigrationInProgress(false);
+        }
+    });
     // Load templates and global variables from storage
     const loadTemplates = () => __awaiter(void 0, void 0, void 0, function* () {
         try {
             setLoading(true);
-            // Get templates and existing global variables
-            const [templates, existingGlobalVars] = yield Promise.all([
+            // Get templates, template groups, and existing global variables
+            const [templates, templateGroups, existingGlobalVars] = yield Promise.all([
                 _services_storage__WEBPACK_IMPORTED_MODULE_3__.storageService.getTemplates(),
+                _services_storage__WEBPACK_IMPORTED_MODULE_3__.storageService.getTemplateGroups(),
                 _services_storage__WEBPACK_IMPORTED_MODULE_3__.storageService.getGlobalVariables()
             ]);
             setTemplates(templates);
+            setTemplateGroups(templateGroups);
             // Extract all unique variables across all templates
             const allVars = new Set();
             templates.forEach(template => {
@@ -36042,6 +36487,15 @@ const Options = () => {
         setCurrentTemplate(null);
         setEditMode('create');
     };
+    // Handle creating a new translation of an existing template
+    const handleCreateTranslation = (template, language) => {
+        // Create a new pre-filled template for the translation
+        const newTemplate = Object.assign(Object.assign({}, template), { id: '', // This will be generated when saved
+            language, content: '' // Start with empty content
+         });
+        setCurrentTemplate(newTemplate);
+        setEditMode('edit');
+    };
     // Handle editing a template
     const handleEdit = (template) => {
         setCurrentTemplate(template);
@@ -36051,23 +36505,35 @@ const Options = () => {
     const handleSaveTemplate = (data) => __awaiter(void 0, void 0, void 0, function* () {
         try {
             if (editMode === 'create') {
-                // Create new template with extracted variables
+                // Create new template
                 yield _services_storage__WEBPACK_IMPORTED_MODULE_3__.storageService.addTemplate({
                     name: data.name,
                     category: data.category,
                     content: data.content,
-                    variables: [], // Variables will be handled by the storage service
-                    language: data.language // Use the language from the form
+                    variables: [],
+                    language: data.language
                 });
             }
             else if (editMode === 'edit' && currentTemplate) {
-                // Update existing template
-                yield _services_storage__WEBPACK_IMPORTED_MODULE_3__.storageService.updateTemplate(currentTemplate.id, {
-                    name: data.name,
-                    category: data.category,
-                    content: data.content,
-                    language: data.language // Include language in update
-                });
+                if (currentTemplate.id) {
+                    // Update existing template
+                    yield _services_storage__WEBPACK_IMPORTED_MODULE_3__.storageService.updateTemplate(currentTemplate.id, {
+                        name: data.name,
+                        category: data.category,
+                        content: data.content,
+                        language: data.language
+                    });
+                }
+                else {
+                    // Create a new translation
+                    const templateToTranslate = templates.find(t => t.baseId === currentTemplate.baseId);
+                    if (templateToTranslate) {
+                        yield _services_storage__WEBPACK_IMPORTED_MODULE_3__.storageService.addTranslation(templateToTranslate, data.language, data.content);
+                    }
+                    else {
+                        throw new Error('Could not find template to translate');
+                    }
+                }
             }
             // Reload templates and reset form
             yield loadTemplates();
@@ -36075,27 +36541,97 @@ const Options = () => {
             setCurrentTemplate(null);
         }
         catch (err) {
-            setError('Failed to save template');
+            setError('Failed to save template: ' + err.message);
             console.error(err);
         }
     });
     // Handle deleting a template
     const handleDeleteTemplate = (templateId) => __awaiter(void 0, void 0, void 0, function* () {
-        if (!confirm('Are you sure you want to delete this template?')) {
+        // Find the template to delete
+        const templateToDelete = templates.find(t => t.id === templateId);
+        if (!templateToDelete)
+            return;
+        // Find all templates with the same baseId
+        const relatedTemplates = templates.filter(t => t.baseId === templateToDelete.baseId &&
+            t.id !== templateId);
+        let confirmMessage = 'Are you sure you want to delete this template?';
+        if (relatedTemplates.length > 0) {
+            confirmMessage = `This template has ${relatedTemplates.length} translation(s). Do you want to delete all language versions or just this one?
+      
+• Click "OK" to delete only this language version (${templateToDelete.language || 'EN'})
+• Click "Cancel" then confirm to delete ALL language versions`;
+            if (confirm(confirmMessage)) {
+                // Delete only this template
+                try {
+                    yield _services_storage__WEBPACK_IMPORTED_MODULE_3__.storageService.deleteTemplate(templateId);
+                    yield loadTemplates();
+                }
+                catch (err) {
+                    setError('Failed to delete template');
+                    console.error(err);
+                }
+                return;
+            }
+            // User cancelled - ask if they want to delete all translations
+            if (confirm(`Delete ALL language versions of "${templateToDelete.name}"?`)) {
+                try {
+                    // Delete all templates with this baseId
+                    yield _services_storage__WEBPACK_IMPORTED_MODULE_3__.storageService.deleteTemplateGroup(templateToDelete.baseId);
+                    yield loadTemplates();
+                }
+                catch (err) {
+                    setError('Failed to delete templates');
+                    console.error(err);
+                }
+            }
             return;
         }
-        try {
-            yield _services_storage__WEBPACK_IMPORTED_MODULE_3__.storageService.deleteTemplate(templateId);
-            yield loadTemplates();
-        }
-        catch (err) {
-            setError('Failed to delete template');
-            console.error(err);
+        // No translations - simple delete with confirmation
+        if (confirm(confirmMessage)) {
+            try {
+                yield _services_storage__WEBPACK_IMPORTED_MODULE_3__.storageService.deleteTemplate(templateId);
+                yield loadTemplates();
+            }
+            catch (err) {
+                setError('Failed to delete template');
+                console.error(err);
+            }
         }
     });
     // Handle copying a template with variables
     const handleCopyTemplate = (template, e) => {
+        var _a;
         e.stopPropagation();
+        // Find translations of this template
+        const translations = templates.filter(t => t.baseId === template.baseId &&
+            t.id !== template.id);
+        // If there are translations, prompt for language selection
+        if (translations.length > 0) {
+            // Create an array of available languages
+            const availableLanguages = [
+                { code: template.language || 'EN', id: template.id }
+            ];
+            translations.forEach(t => {
+                availableLanguages.push({ code: t.language || 'EN', id: t.id });
+            });
+            // Construct options for prompt
+            const languageOptions = availableLanguages.map(lang => `${lang.code} (${lang.code === template.language ? 'current' : 'translation'})`).join(', ');
+            // Show prompt to select language
+            const selectedLang = prompt(`Which language version would you like to copy?\nAvailable: ${languageOptions}`, template.language || 'EN');
+            if (!selectedLang)
+                return; // User cancelled
+            // Find the template with the selected language
+            const selectedTemplate = (_a = availableLanguages.find(l => l.code === selectedLang)) === null || _a === void 0 ? void 0 : _a.id;
+            if (selectedTemplate) {
+                const templateToUse = templates.find(t => t.id === selectedTemplate);
+                if (templateToUse) {
+                    setTemplateToCopy(templateToUse);
+                    setShowVariableModal(true);
+                    return;
+                }
+            }
+        }
+        // No translations or language selection failed, use the original template
         setTemplateToCopy(template);
         setShowVariableModal(true);
     };
@@ -36164,6 +36700,35 @@ const Options = () => {
             alert('Invalid import data: ' + err.message);
         }
     };
+    // Process templates to group translations if needed
+    const processTemplates = (templates) => {
+        if (!groupTranslations) {
+            return templates;
+        }
+        // Create a map of templates by baseId
+        const templateGroups = {};
+        templates.forEach(template => {
+            if (!templateGroups[template.baseId]) {
+                templateGroups[template.baseId] = [];
+            }
+            templateGroups[template.baseId].push(template);
+        });
+        // Keep only primary language template or the first one found for each group
+        return Object.values(templateGroups).map(group => {
+            // Try to find a template in the current language filter
+            if (languageFilter !== 'ALL') {
+                const matchingLang = group.find(t => t.language === languageFilter);
+                if (matchingLang)
+                    return matchingLang;
+            }
+            // Otherwise try English as default
+            const english = group.find(t => t.language === 'EN');
+            if (english)
+                return english;
+            // Fallback to first template
+            return group[0];
+        });
+    };
     // Filter templates by search term and language
     const filteredTemplates = templates.filter(template => {
         const term = searchTerm.toLowerCase();
@@ -36175,17 +36740,26 @@ const Options = () => {
             (languageFilter === 'EN' && !template.language); // Treat templates without language as English
         return matchesSearch && matchesLanguage;
     });
+    // Apply grouping if needed
+    const displayTemplates = processTemplates(filteredTemplates);
+    // Render migration notice if needed
+    if (migrationNeeded) {
+        return ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { className: "container mx-auto px-4 py-8", children: (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("h2", { className: "text-xl font-bold mb-2", children: "Database Migration Required" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("p", { className: "mb-4", children: "Your templates need to be updated to support the new multilingual features. This will group templates with the same name as translations of each other." }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("button", { className: "px-4 py-2 bg-yellow-500 text-white rounded hover:bg-yellow-600", onClick: handleRunMigration, disabled: migrationInProgress, children: migrationInProgress ? 'Migration in progress...' : 'Run Migration' })] }) }));
+    }
     // Render loading state
     if (loading && templates.length === 0) {
         return ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { className: "container mx-auto px-4 py-8", children: (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { className: "text-center", children: "Loading templates..." }) }));
     }
     // Render error state
     if (error) {
-        return ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "container mx-auto px-4 py-8", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded", children: ["Error: ", error] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("button", { className: "mt-4 px-4 py-2 bg-blue-500 text-white rounded", onClick: () => loadTemplates(), children: "Retry" })] }));
+        return ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "container mx-auto px-4 py-8", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded", children: ["Error: ", error] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("button", { className: "mt-4 px-4 py-2 bg-blue-500 text-white rounded", onClick: () => {
+                        setError(null);
+                        loadTemplates();
+                    }, children: "Retry" })] }));
     }
     // Render template form (create/edit)
-    if (editMode) {
-        return ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "container mx-auto px-4 py-8 max-w-4xl", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("h1", { className: "text-2xl font-bold mb-6", children: editMode === 'create' ? 'Create Template' : 'Edit Template' }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(_components_TemplateForm__WEBPACK_IMPORTED_MODULE_6__["default"], { template: currentTemplate || undefined, onSave: handleSaveTemplate, onCancel: () => {
+    if (editMode === 'create' || editMode === 'edit') {
+        return ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "container mx-auto px-4 py-8 max-w-4xl", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("h1", { className: "text-2xl font-bold mb-6", children: editMode === 'create' ? 'Create Template' : 'Edit Template' }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(_components_MultilingualTemplateForm__WEBPACK_IMPORTED_MODULE_7__["default"], { template: currentTemplate || undefined, onSave: handleSaveTemplate, onCancel: () => {
                         setEditMode(null);
                         setCurrentTemplate(null);
                     } })] }));
@@ -36203,7 +36777,7 @@ const Options = () => {
     }
     // Render variable input modal
     if (showVariableModal && templateToCopy) {
-        return ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(_components_VariableModal__WEBPACK_IMPORTED_MODULE_8__["default"], { template: templateToCopy, initialValues: {}, title: "Fill Template Variables", buttonText: "Copy to Clipboard", onApply: handleVariableSubmit, onCancel: () => {
+        return ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(_components_VariableModal__WEBPACK_IMPORTED_MODULE_9__["default"], { template: templateToCopy, initialValues: {}, title: "Fill Template Variables", buttonText: "Copy to Clipboard", onApply: handleVariableSubmit, onCancel: () => {
                 setShowVariableModal(false);
                 setTemplateToCopy(null);
             } }));
@@ -36211,9 +36785,50 @@ const Options = () => {
     // Render template list (main view)
     return ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "container mx-auto px-4 py-8 max-w-6xl", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "flex justify-between items-center mb-6", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("h1", { className: "text-2xl font-bold", children: "Support Template Manager" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "space-x-2", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("button", { className: "px-4 py-2 border rounded hover:bg-gray-100", onClick: () => setShowImportExport(true), children: "Import/Export" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("button", { className: "px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600", onClick: handleCreateNew, children: "Create New Template" })] })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { className: "border-b border-gray-200 mb-6", children: (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("nav", { className: "-mb-px flex space-x-8", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("button", { className: `py-2 px-1 border-b-2 font-medium text-sm ${activeTab === 'templates'
                                 ? 'border-blue-500 text-blue-600'
-                                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`, onClick: () => setActiveTab('templates'), children: "Templates" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("button", { className: `py-2 px-1 border-b-2 font-medium text-sm ${activeTab === 'variables'
+                                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`, onClick: () => setActiveTab('templates'), children: "Templates" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("button", { className: `py-2 px-1 border-b-2 font-medium text-sm ${activeTab === 'multilingual'
                                 ? 'border-blue-500 text-blue-600'
-                                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`, onClick: () => setActiveTab('variables'), children: "Variables Configuration" })] }) }), activeTab === 'templates' && ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)(react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.Fragment, { children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "flex gap-2 mb-4", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("input", { type: "text", placeholder: "Search templates...", className: "flex-1 px-3 py-2 border rounded", value: searchTerm, onChange: e => setSearchTerm(e.target.value) }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("select", { className: "px-3 py-2 border rounded", value: languageFilter, onChange: e => setLanguageFilter(e.target.value), children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("option", { value: "ALL", children: "All Languages" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("option", { value: "EN", children: "English" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("option", { value: "FR", children: "French" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("option", { value: "DE", children: "German" })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("button", { className: "px-3 py-2 bg-green-500 text-white rounded", onClick: handleCreateNew, children: "+" })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(_components_TemplateList__WEBPACK_IMPORTED_MODULE_7__["default"], { templates: filteredTemplates, onEdit: handleEdit, onDelete: handleDeleteTemplate, onCopy: handleCopyTemplate })] })), activeTab === 'variables' && ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(_components_GlobalVariablesManager__WEBPACK_IMPORTED_MODULE_5__["default"], { variables: globalVariables, onVariablesUpdated: loadTemplates }))] }));
+                                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`, onClick: () => setActiveTab('multilingual'), children: "Multilingual View" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("button", { className: `py-2 px-1 border-b-2 font-medium text-sm ${activeTab === 'variables'
+                                ? 'border-blue-500 text-blue-600'
+                                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`, onClick: () => setActiveTab('variables'), children: "Variables Configuration" })] }) }), activeTab === 'templates' && ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)(react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.Fragment, { children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "flex gap-2 mb-4", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("input", { type: "text", placeholder: "Search templates...", className: "flex-1 px-3 py-2 border rounded", value: searchTerm, onChange: e => setSearchTerm(e.target.value) }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("select", { className: "px-3 py-2 border rounded", value: languageFilter, onChange: e => setLanguageFilter(e.target.value), children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("option", { value: "ALL", children: "All Languages" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("option", { value: "EN", children: "English" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("option", { value: "FR", children: "French" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("option", { value: "DE", children: "German" })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "flex items-center px-3 py-2 border rounded", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("input", { type: "checkbox", id: "groupTranslations", checked: groupTranslations, onChange: e => setGroupTranslations(e.target.checked), className: "mr-2" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { htmlFor: "groupTranslations", className: "text-sm", children: "Group Translations" })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("button", { className: "px-3 py-2 bg-green-500 text-white rounded", onClick: handleCreateNew, children: "+" })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(_components_TemplateList__WEBPACK_IMPORTED_MODULE_8__["default"], { templates: displayTemplates, allTemplates: templates, onEdit: handleEdit, onDelete: handleDeleteTemplate, onCopy: handleCopyTemplate, onTranslate: (template) => {
+                            // Show available languages to add translations for
+                            const availableLanguages = ['EN', 'FR', 'DE'];
+                            // Find existing translations
+                            const translations = templates.filter(t => t.baseId === template.baseId &&
+                                t.id !== template.id);
+                            // Get languages that already have translations
+                            const existingLanguages = [
+                                template.language || 'EN',
+                                ...translations.map(t => t.language || 'EN')
+                            ];
+                            // Get languages that need translations
+                            const missingLanguages = availableLanguages.filter(lang => !existingLanguages.includes(lang));
+                            if (missingLanguages.length === 0) {
+                                alert('This template already has translations in all languages.');
+                                return;
+                            }
+                            // Ask user which language to add
+                            let languageOptions = '';
+                            missingLanguages.forEach(lang => {
+                                const langName = lang === 'EN' ? 'English' : lang === 'FR' ? 'French' : 'German';
+                                languageOptions += `- ${lang} (${langName})\n`;
+                            });
+                            const selectedLang = prompt(`Select a language to add a translation for "${template.name}":\n${languageOptions}`, missingLanguages[0]);
+                            if (!selectedLang || !missingLanguages.includes(selectedLang)) {
+                                return; // Invalid selection or user cancelled
+                            }
+                            // Create a new translation
+                            handleCreateTranslation(template, selectedLang);
+                        } })] })), activeTab === 'multilingual' && ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(_components_TemplateLanguageOverview__WEBPACK_IMPORTED_MODULE_10__["default"], { templateGroups: templateGroups, onSelectTemplate: (templateId) => {
+                    const template = templates.find(t => t.id === templateId);
+                    if (template) {
+                        handleEdit(template);
+                    }
+                }, onAddTranslation: (baseId, language) => {
+                    const template = templates.find(t => t.baseId === baseId);
+                    if (template) {
+                        handleCreateTranslation(template, language);
+                    }
+                } })), activeTab === 'variables' && ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(_components_GlobalVariablesManager__WEBPACK_IMPORTED_MODULE_6__["default"], { variables: globalVariables, onVariablesUpdated: loadTemplates }))] }));
 };
 // Render the app
 const root = document.getElementById('root');

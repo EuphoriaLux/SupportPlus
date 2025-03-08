@@ -27,7 +27,8 @@ export const useTemplates = () => {
   const createTemplate = useCallback(async (
     name: string,
     category: string,
-    content: string
+    content: string,
+    language: 'EN' | 'FR' | 'DE' = 'EN'
   ) => {
     try {
       // Auto-detect variables in the content
@@ -37,7 +38,8 @@ export const useTemplates = () => {
         name,
         category,
         content,
-        variables
+        variables,
+        language
       });
       
       setTemplates(prev => [...prev, newTemplate]);
@@ -117,6 +119,53 @@ export const useTemplates = () => {
     return parseTemplate(template, variableValues);
   }, []);
 
+  // Find translations of a template
+  const findTranslations = useCallback((template: Template) => {
+    return templates.filter(t => 
+      t.name === template.name && 
+      t.id !== template.id
+    );
+  }, [templates]);
+
+  // Create a translation of an existing template
+  const createTranslation = useCallback(async (
+    templateId: string,
+    language: 'EN' | 'FR' | 'DE',
+    translatedContent: string
+  ) => {
+    try {
+      const sourceTemplate = templates.find(t => t.id === templateId);
+      if (!sourceTemplate) {
+        throw new Error('Source template not found');
+      }
+      
+      // Check if translation already exists
+      const existingTranslation = templates.find(t => 
+        t.name === sourceTemplate.name && 
+        t.language === language
+      );
+      
+      if (existingTranslation) {
+        // Update existing translation
+        return updateTemplate(existingTranslation.id, {
+          content: translatedContent
+        });
+      } else {
+        // Create new translation
+        return createTemplate(
+          sourceTemplate.name,
+          sourceTemplate.category,
+          translatedContent,
+          language
+        );
+      }
+    } catch (err) {
+      setError('Failed to create translation');
+      console.error(err);
+      return null;
+    }
+  }, [templates, createTemplate, updateTemplate]);
+
   // Load templates on initial mount
   useEffect(() => {
     fetchTemplates();
@@ -130,6 +179,8 @@ export const useTemplates = () => {
     createTemplate,
     updateTemplate,
     deleteTemplate,
-    applyTemplate
+    applyTemplate,
+    findTranslations,
+    createTranslation
   };
 };

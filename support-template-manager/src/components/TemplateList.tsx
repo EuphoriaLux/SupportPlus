@@ -4,16 +4,20 @@ import TemplateItem from './TemplateItem';
 
 interface TemplateListProps {
   templates: Template[];
+  allTemplates: Template[]; // All templates for finding translations
   onEdit: (template: Template) => void;
   onDelete: (templateId: string) => void;
   onCopy: (template: Template, e: React.MouseEvent) => void;
+  onTranslate: (template: Template) => void;
 }
 
 const TemplateList: React.FC<TemplateListProps> = ({ 
-  templates, 
+  templates,
+  allTemplates, 
   onEdit, 
   onDelete, 
-  onCopy 
+  onCopy,
+  onTranslate
 }) => {
   if (templates.length === 0) {
     return (
@@ -56,9 +60,11 @@ const TemplateList: React.FC<TemplateListProps> = ({
             <TemplateItem 
               key={template.id}
               template={template}
+              allTemplates={allTemplates}
               onEdit={onEdit}
               onDelete={onDelete}
               onCopy={onCopy}
+              onTranslate={onTranslate}
             />
           ))}
         </tbody>

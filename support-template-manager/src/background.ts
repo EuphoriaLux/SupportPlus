@@ -9,6 +9,7 @@ chrome.runtime.onInstalled.addListener((details) => {
     const initialTemplates: Template[] = [
       {
         id: crypto.randomUUID(),
+        baseId: crypto.randomUUID(), // Add baseId (will be the same as id for first template)
         name: 'Welcome Response',
         category: 'General',
         content: 'Hi {{customerName}},\n\nThank you for reaching out to our support team! We\'re happy to help you with your inquiry about {{productName}}.\n\nI\'ll look into this right away and get back to you within {{responseTime}} hours.\n\nBest regards,\n{{agentName}}\n{{teamName}} Support',
@@ -19,11 +20,13 @@ chrome.runtime.onInstalled.addListener((details) => {
           { name: 'agentName', description: 'Your name', defaultValue: '' },
           { name: 'teamName', description: 'Team name', defaultValue: 'Customer' },
         ],
+        language: 'EN', // Add language property
         createdAt: Date.now(),
         updatedAt: Date.now()
       },
       {
         id: crypto.randomUUID(),
+        baseId: crypto.randomUUID(), // Add baseId (will be the same as id for first template)
         name: 'Technical Issue Response',
         category: 'Technical',
         content: 'Hello {{customerName}},\n\nI understand you\'re experiencing an issue with {{feature}}. I apologize for any inconvenience this has caused.\n\nTo help troubleshoot this issue, could you please provide the following information:\n\n1. What version of {{productName}} are you currently using?\n2. When did you first notice this issue?\n3. {{additionalQuestions}}\n\nOnce I have this information, I\'ll be better equipped to help resolve your issue.\n\nThank you for your patience,\n{{agentName}}\n{{department}} Support Team',
@@ -35,11 +38,13 @@ chrome.runtime.onInstalled.addListener((details) => {
           { name: 'agentName', description: 'Your name', defaultValue: '' },
           { name: 'department', description: 'Your department', defaultValue: 'Technical' }
         ],
+        language: 'EN', // Add language property
         createdAt: Date.now(),
         updatedAt: Date.now()
       },
       {
         id: crypto.randomUUID(),
+        baseId: crypto.randomUUID(), // Add baseId (will be the same as id for first template)
         name: 'Follow-up Template',
         category: 'General',
         content: 'Hi {{customerName}},\n\nI wanted to follow up on your recent support request regarding {{issueDescription}}.\n\nHas the solution we provided resolved your issue? If you\'re still experiencing problems or have any questions, please don\'t hesitate to let me know.\n\nYour feedback is important to us as we strive to provide the best possible support.\n\nBest regards,\n{{agentName}}\n{{teamName}} Support',
@@ -49,10 +54,16 @@ chrome.runtime.onInstalled.addListener((details) => {
           { name: 'agentName', description: 'Your name', defaultValue: '' },
           { name: 'teamName', description: 'Team name', defaultValue: 'Customer' }
         ],
+        language: 'EN', // Add language property
         createdAt: Date.now(),
         updatedAt: Date.now()
       }
     ];
+
+    // For each template, set the baseId to be the same as the id initially
+    initialTemplates.forEach(template => {
+      template.baseId = template.id;
+    });
 
     // Save initial templates to storage
     chrome.storage.sync.set({ [STORAGE_KEY]: initialTemplates }, () => {
