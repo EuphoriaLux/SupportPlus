@@ -1,0 +1,28 @@
+{
+  "manifest_version": 3,
+  "name": "Support Template Manager",
+  "version": "1.0.0",
+  "description": "Manage and use email templates for support agents",
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+    }
+  },
+  "icons": {
+  },
+  "permissions": [
+    "storage",
+    "activeTab",
+    "contextMenus"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["*://*.gmail.com/*", "*://*.outlook.com/*", "*://*.mail.yahoo.com/*"],
+      "js": ["content-script.js"]
+    }
+  ],
+  "options_page": "options.html"
+}
