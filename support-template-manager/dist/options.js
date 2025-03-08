@@ -51865,17 +51865,6 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var react_quill__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! react-quill */ "./node_modules/react-quill/lib/index.js");
 /* harmony import */ var react_quill__WEBPACK_IMPORTED_MODULE_2___default = /*#__PURE__*/__webpack_require__.n(react_quill__WEBPACK_IMPORTED_MODULE_2__);
 /* harmony import */ var react_quill_dist_quill_snow_css__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! react-quill/dist/quill.snow.css */ "./node_modules/react-quill/dist/quill.snow.css");
-var __rest = (undefined && undefined.__rest) || function (s, e) {
-    var t = {};
-    for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p) && e.indexOf(p) < 0)
-        t[p] = s[p];
-    if (s != null && typeof Object.getOwnPropertySymbols === "function")
-        for (var i = 0, p = Object.getOwnPropertySymbols(s); i < p.length; i++) {
-            if (e.indexOf(p[i]) < 0 && Object.prototype.propertyIsEnumerable.call(s, p[i]))
-                t[p[i]] = s[p[i]];
-        }
-    return t;
-};
 
 
 
@@ -51909,80 +51898,98 @@ const editorStyle = `
     white-space: nowrap;
   }
 `;
-// Custom wrapper for ReactQuill that enhances clipboard handling for HTML content
-const EnhancedReactQuill = (_a) => {
-    var { forwardedRef } = _a, props = __rest(_a, ["forwardedRef"]);
+// Create a ref-based version of ReactQuill to avoid findDOMNode
+const ReactQuillWithRef = (0,react__WEBPACK_IMPORTED_MODULE_1__.forwardRef)((props, ref) => {
+    const quillRef = (0,react__WEBPACK_IMPORTED_MODULE_1__.useRef)(null);
     const containerRef = (0,react__WEBPACK_IMPORTED_MODULE_1__.useRef)(null);
-    (0,react__WEBPACK_IMPORTED_MODULE_1__.useEffect)(() => {
-        // Handle paste events to better preserve formatting and variables
-        const handlePaste = (e) => {
-            if (containerRef.current && e.target instanceof Node && containerRef.current.contains(e.target)) {
-                const clipboardData = e.clipboardData;
-                if (clipboardData) {
-                    const html = clipboardData.getData('text/html');
-                    if (html) {
-                        // Look for variables in the pasted content
-                        const varRegex = /\{\{([^}]+)\}\}/g;
-                        if (varRegex.test(html)) {
-                            // Let Quill handle the paste event normally, but we'll format variables after
-                            setTimeout(() => {
-                                if (forwardedRef.current) {
-                                    const editor = forwardedRef.current.getEditor();
-                                    const text = editor.getText();
-                                    const varRegex = /\{\{([^}]+)\}\}/g;
-                                    let match;
-                                    while ((match = varRegex.exec(text)) !== null) {
-                                        const start = match.index;
-                                        const length = match[0].length;
-                                        editor.formatText(start, length, {
-                                            'color': '#2563eb',
-                                            'background': '#dbeafe',
-                                            'bold': true,
-                                        });
-                                    }
-                                }
-                            }, 10);
-                        }
-                    }
-                }
-            }
-        };
-        document.addEventListener('paste', handlePaste, true);
-        return () => {
-            document.removeEventListener('paste', handlePaste, true);
-        };
-    }, [forwardedRef]);
-    return ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { ref: containerRef, children: (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)((react_quill__WEBPACK_IMPORTED_MODULE_2___default()), Object.assign({ ref: forwardedRef }, props)) }));
-};
-// Create a forwardRef version of the component with correct typing
-const ForwardedReactQuill = react__WEBPACK_IMPORTED_MODULE_1___default().forwardRef((props, ref) => ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(EnhancedReactQuill, Object.assign({}, props, { forwardedRef: ref }))));
+    (0,react__WEBPACK_IMPORTED_MODULE_1__.useImperativeHandle)(ref, () => ({
+        getEditor: () => { var _a; return (_a = quillRef.current) === null || _a === void 0 ? void 0 : _a.getEditor(); },
+        focus: () => { var _a; return (_a = quillRef.current) === null || _a === void 0 ? void 0 : _a.focus(); },
+        blur: () => { var _a; return (_a = quillRef.current) === null || _a === void 0 ? void 0 : _a.blur(); },
+        getContainerRef: () => containerRef.current
+    }));
+    return ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { ref: containerRef, className: "quill-container", children: (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)((react_quill__WEBPACK_IMPORTED_MODULE_2___default()), Object.assign({ ref: quillRef }, props)) }));
+});
 const SimpleRichTextEditor = ({ value, onChange, placeholder = 'Write your content here...' }) => {
     const quillRef = (0,react__WEBPACK_IMPORTED_MODULE_1__.useRef)(null);
     const [editorHtml, setEditorHtml] = (0,react__WEBPACK_IMPORTED_MODULE_1__.useState)(value);
-    // Sync the editor content with the parent component's state
-    (0,react__WEBPACK_IMPORTED_MODULE_1__.useEffect)(() => {
-        setEditorHtml(value);
-        // After setting content, find and style all variable placeholders
-        // This is now handled in a more controlled way using the ref
+    const [quillInstance, setQuillInstance] = (0,react__WEBPACK_IMPORTED_MODULE_1__.useState)(null);
+    // Handle paste events to better preserve formatting and variables
+    const handlePaste = (0,react__WEBPACK_IMPORTED_MODULE_1__.useCallback)((e) => {
+        var _a;
+        const editor = quillInstance || ((_a = quillRef.current) === null || _a === void 0 ? void 0 : _a.getEditor());
+        if (!editor)
+            return;
+        // Handle variables in pasted content
         setTimeout(() => {
-            if (quillRef.current) {
-                const editor = quillRef.current.getEditor();
-                const content = editor.getText();
-                const variableRegex = /\{\{([^}]+)\}\}/g;
-                let match;
-                // Find and format variables
-                while ((match = variableRegex.exec(content)) !== null) {
-                    const start = match.index;
-                    const length = match[0].length;
-                    editor.formatText(start, length, {
-                        'color': '#2563eb',
-                        'background': '#dbeafe',
-                        'bold': true,
-                    }, 'api');
-                }
+            const text = editor.getText();
+            const varRegex = /\{\{([^}]+)\}\}/g;
+            let match;
+            while ((match = varRegex.exec(text)) !== null) {
+                const start = match.index;
+                const length = match[0].length;
+                editor.formatText(start, length, {
+                    'color': '#2563eb',
+                    'background': '#dbeafe',
+                    'bold': true,
+                });
             }
         }, 10);
-    }, [value]);
+    }, [quillInstance]);
+    // Get the Quill instance after mounting
+    (0,react__WEBPACK_IMPORTED_MODULE_1__.useEffect)(() => {
+        // This effect runs once to capture the Quill instance
+        if (quillRef.current && quillRef.current.getEditor) {
+            const editor = quillRef.current.getEditor();
+            setQuillInstance(editor);
+        }
+    }, []);
+    // Sync the editor content with the parent component's state
+    (0,react__WEBPACK_IMPORTED_MODULE_1__.useEffect)(() => {
+        var _a;
+        setEditorHtml(value);
+        // After setting content, find and style all variable placeholders
+        if (quillInstance || ((_a = quillRef.current) === null || _a === void 0 ? void 0 : _a.getEditor())) {
+            setTimeout(() => {
+                var _a;
+                const editor = quillInstance || ((_a = quillRef.current) === null || _a === void 0 ? void 0 : _a.getEditor());
+                if (editor) {
+                    const content = editor.getText();
+                    const variableRegex = /\{\{([^}]+)\}\}/g;
+                    let match;
+                    // Find and format variables
+                    while ((match = variableRegex.exec(content)) !== null) {
+                        const start = match.index;
+                        const length = match[0].length;
+                        editor.formatText(start, length, {
+                            'color': '#2563eb',
+                            'background': '#dbeafe',
+                            'bold': true,
+                        }, 'api');
+                    }
+                }
+            }, 10);
+        }
+    }, [value, quillInstance]);
+    // Add event listener for paste
+    (0,react__WEBPACK_IMPORTED_MODULE_1__.useEffect)(() => {
+        var _a, _b;
+        const container = (_b = (_a = quillRef.current) === null || _a === void 0 ? void 0 : _a.getContainerRef) === null || _b === void 0 ? void 0 : _b.call(_a);
+        if (container) {
+            // Add paste event listener to the container rather than document
+            container.addEventListener('paste', handlePaste, true);
+            return () => {
+                container.removeEventListener('paste', handlePaste, true);
+            };
+        }
+        else {
+            // Fallback to document if container ref isn't available
+            document.addEventListener('paste', handlePaste, true);
+            return () => {
+                document.removeEventListener('paste', handlePaste, true);
+            };
+        }
+    }, [handlePaste, quillRef]);
     // Define toolbar options for Quill
     const modules = {
         toolbar: [
@@ -52006,26 +52013,25 @@ const SimpleRichTextEditor = ({ value, onChange, placeholder = 'Write your conte
     ];
     // Handle changes in the editor
     const handleChange = (html) => {
-        // Preserve variables in the editor content
-        // This is a simpler approach that works well with the forwardRef implementation
         setEditorHtml(html);
         onChange(html);
     };
     // Custom function to insert a variable placeholder at cursor position
     const insertVariable = (variableName) => {
-        if (!quillRef.current)
+        var _a;
+        const editor = quillInstance || ((_a = quillRef.current) === null || _a === void 0 ? void 0 : _a.getEditor());
+        if (!editor)
             return;
-        const quill = quillRef.current.getEditor();
-        const range = quill.getSelection();
+        const range = editor.getSelection();
         const position = range ? range.index : 0;
         // Insert the variable placeholder at the cursor position
-        quill.insertText(position, `{{${variableName}}}`, {
+        editor.insertText(position, `{{${variableName}}}`, {
             'color': '#2563eb',
             'background': '#dbeafe',
             'bold': true,
         });
         // Move cursor after the inserted variable
-        quill.setSelection(position + variableName.length + 4, 0);
+        editor.setSelection(position + variableName.length + 4, 0);
     };
     // Common variables that might be used in templates
     const commonVariables = [
@@ -52036,7 +52042,7 @@ const SimpleRichTextEditor = ({ value, onChange, placeholder = 'Write your conte
         'teamName',
         'responseTime'
     ];
-    return ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "rich-text-editor", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("style", { children: editorStyle }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(ForwardedReactQuill, { ref: quillRef, theme: "snow", value: editorHtml, onChange: handleChange, modules: modules, formats: formats, placeholder: placeholder }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "mt-2 flex flex-wrap items-center", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("span", { className: "text-xs text-gray-500 mr-2", children: "Insert variable:" }), commonVariables.map(varName => ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("button", { type: "button", onClick: () => insertVariable(varName), className: "text-xs m-1 px-2 py-1 bg-blue-100 text-blue-800 rounded hover:bg-blue-200 cursor-pointer", children: varName }, varName))), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("button", { type: "button", onClick: () => {
+    return ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "rich-text-editor", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("style", { children: editorStyle }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(ReactQuillWithRef, { ref: quillRef, theme: "snow", value: editorHtml, onChange: handleChange, modules: modules, formats: formats, placeholder: placeholder }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "mt-2 flex flex-wrap items-center", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("span", { className: "text-xs text-gray-500 mr-2", children: "Insert variable:" }), commonVariables.map(varName => ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("button", { type: "button", onClick: () => insertVariable(varName), className: "text-xs m-1 px-2 py-1 bg-blue-100 text-blue-800 rounded hover:bg-blue-200 cursor-pointer", children: varName }, varName))), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("button", { type: "button", onClick: () => {
                             const varName = prompt('Enter custom variable name:');
                             if (varName)
                                 insertVariable(varName);

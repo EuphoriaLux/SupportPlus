@@ -1,6 +1,8 @@
-import React, { useEffect, useRef, useState, RefObject, ClipboardEvent } from 'react';
+import React, { useEffect, useRef, useState, forwardRef, useImperativeHandle, useCallback } from 'react';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
+// Import Quill directly for direct access to its features
+import Quill from 'quill';
 
 // Custom CSS to integrate with your app's styles
 const editorStyle = `
@@ -33,119 +35,120 @@ const editorStyle = `
 `;
 
 // Define the props for the enhanced ReactQuill component
-interface EnhancedReactQuillProps {
-  forwardedRef: RefObject<ReactQuill>;
-  value: string;
-  onChange: (value: string) => void;
-  theme?: string;
-  modules?: any;
-  formats?: string[];
-  placeholder?: string;
-}
-
-// Custom wrapper for ReactQuill that enhances clipboard handling for HTML content
-const EnhancedReactQuill: React.FC<EnhancedReactQuillProps> = ({ 
-  forwardedRef,
-  ...props 
-}) => {
-  const containerRef = useRef<HTMLDivElement>(null);
-  
-  useEffect(() => {
-    // Handle paste events to better preserve formatting and variables
-    const handlePaste = (e: ClipboardEvent) => {
-      if (containerRef.current && e.target instanceof Node && containerRef.current.contains(e.target)) {
-        const clipboardData = e.clipboardData;
-        if (clipboardData) {
-          const html = clipboardData.getData('text/html');
-          if (html) {
-            // Look for variables in the pasted content
-            const varRegex = /\{\{([^}]+)\}\}/g;
-            if (varRegex.test(html)) {
-              // Let Quill handle the paste event normally, but we'll format variables after
-              setTimeout(() => {
-                if (forwardedRef.current) {
-                  const editor = forwardedRef.current.getEditor();
-                  const text = editor.getText();
-                  const varRegex = /\{\{([^}]+)\}\}/g;
-                  let match;
-                  
-                  while ((match = varRegex.exec(text)) !== null) {
-                    const start = match.index;
-                    const length = match[0].length;
-                    
-                    editor.formatText(start, length, {
-                      'color': '#2563eb',
-                      'background': '#dbeafe',
-                      'bold': true,
-                    });
-                  }
-                }
-              }, 10);
-            }
-          }
-        }
-      }
-    };
-    
-    document.addEventListener('paste', handlePaste as unknown as EventListener, true);
-    return () => {
-      document.removeEventListener('paste', handlePaste as unknown as EventListener, true);
-    };
-  }, [forwardedRef]);
-  
-  return (
-    <div ref={containerRef}>
-      <ReactQuill ref={forwardedRef} {...props} />
-    </div>
-  );
-};
-
-// Create a forwardRef version of the component with correct typing
-const ForwardedReactQuill = React.forwardRef<ReactQuill, Omit<EnhancedReactQuillProps, 'forwardedRef'>>((props, ref) => (
-  <EnhancedReactQuill {...props} forwardedRef={ref as RefObject<ReactQuill>} />
-));
-
 interface SimpleRichTextEditorProps {
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
 }
 
+// Create a ref-based version of ReactQuill to avoid findDOMNode
+const ReactQuillWithRef = forwardRef((props: any, ref) => {
+  const quillRef = useRef<any>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  
+  useImperativeHandle(ref, () => ({
+    getEditor: () => quillRef.current?.getEditor(),
+    focus: () => quillRef.current?.focus(),
+    blur: () => quillRef.current?.blur(),
+    getContainerRef: () => containerRef.current
+  }));
+  
+  return (
+    <div ref={containerRef} className="quill-container">
+      <ReactQuill ref={quillRef} {...props} />
+    </div>
+  );
+});
+
 const SimpleRichTextEditor: React.FC<SimpleRichTextEditorProps> = ({
   value,
   onChange,
   placeholder = 'Write your content here...'
 }) => {
-  const quillRef = useRef<ReactQuill>(null);
+  const quillRef = useRef<any>(null);
   const [editorHtml, setEditorHtml] = useState(value);
+  const [quillInstance, setQuillInstance] = useState<any>(null);
   
+  // Handle paste events to better preserve formatting and variables
+  const handlePaste = useCallback((e: ClipboardEvent) => {
+    const editor = quillInstance || quillRef.current?.getEditor();
+    if (!editor) return;
+    
+    // Handle variables in pasted content
+    setTimeout(() => {
+      const text = editor.getText();
+      const varRegex = /\{\{([^}]+)\}\}/g;
+      let match;
+      
+      while ((match = varRegex.exec(text)) !== null) {
+        const start = match.index;
+        const length = match[0].length;
+        
+        editor.formatText(start, length, {
+          'color': '#2563eb',
+          'background': '#dbeafe',
+          'bold': true,
+        });
+      }
+    }, 10);
+  }, [quillInstance]);
+  
+  // Get the Quill instance after mounting
+  useEffect(() => {
+    // This effect runs once to capture the Quill instance
+    if (quillRef.current && quillRef.current.getEditor) {
+      const editor = quillRef.current.getEditor();
+      setQuillInstance(editor);
+    }
+  }, []);
+
   // Sync the editor content with the parent component's state
   useEffect(() => {
     setEditorHtml(value);
     
     // After setting content, find and style all variable placeholders
-    // This is now handled in a more controlled way using the ref
-    setTimeout(() => {
-      if (quillRef.current) {
-        const editor = quillRef.current.getEditor();
-        const content = editor.getText();
-        const variableRegex = /\{\{([^}]+)\}\}/g;
-        let match;
-        
-        // Find and format variables
-        while ((match = variableRegex.exec(content)) !== null) {
-          const start = match.index;
-          const length = match[0].length;
+    if (quillInstance || quillRef.current?.getEditor()) {
+      setTimeout(() => {
+        const editor = quillInstance || quillRef.current?.getEditor();
+        if (editor) {
+          const content = editor.getText();
+          const variableRegex = /\{\{([^}]+)\}\}/g;
+          let match;
           
-          editor.formatText(start, length, {
-            'color': '#2563eb',
-            'background': '#dbeafe',
-            'bold': true,
-          }, 'api');
+          // Find and format variables
+          while ((match = variableRegex.exec(content)) !== null) {
+            const start = match.index;
+            const length = match[0].length;
+            
+            editor.formatText(start, length, {
+              'color': '#2563eb',
+              'background': '#dbeafe',
+              'bold': true,
+            }, 'api');
+          }
         }
-      }
-    }, 10);
-  }, [value]);
+      }, 10);
+    }
+  }, [value, quillInstance]);
+
+  // Add event listener for paste
+  useEffect(() => {
+    const container = quillRef.current?.getContainerRef?.();
+    
+    if (container) {
+      // Add paste event listener to the container rather than document
+      container.addEventListener('paste', handlePaste as unknown as EventListener, true);
+      return () => {
+        container.removeEventListener('paste', handlePaste as unknown as EventListener, true);
+      };
+    } else {
+      // Fallback to document if container ref isn't available
+      document.addEventListener('paste', handlePaste as unknown as EventListener, true);
+      return () => {
+        document.removeEventListener('paste', handlePaste as unknown as EventListener, true);
+      };
+    }
+  }, [handlePaste, quillRef]);
 
   // Define toolbar options for Quill
   const modules = {
@@ -172,29 +175,27 @@ const SimpleRichTextEditor: React.FC<SimpleRichTextEditorProps> = ({
 
   // Handle changes in the editor
   const handleChange = (html: string) => {
-    // Preserve variables in the editor content
-    // This is a simpler approach that works well with the forwardRef implementation
     setEditorHtml(html);
     onChange(html);
   };
 
   // Custom function to insert a variable placeholder at cursor position
   const insertVariable = (variableName: string) => {
-    if (!quillRef.current) return;
+    const editor = quillInstance || quillRef.current?.getEditor();
+    if (!editor) return;
     
-    const quill = quillRef.current.getEditor();
-    const range = quill.getSelection();
+    const range = editor.getSelection();
     const position = range ? range.index : 0;
     
     // Insert the variable placeholder at the cursor position
-    quill.insertText(position, `{{${variableName}}}`, {
+    editor.insertText(position, `{{${variableName}}}`, {
       'color': '#2563eb',
       'background': '#dbeafe',
       'bold': true,
     });
     
     // Move cursor after the inserted variable
-    quill.setSelection(position + variableName.length + 4, 0);
+    editor.setSelection(position + variableName.length + 4, 0);
   };
 
   // Common variables that might be used in templates
@@ -210,7 +211,7 @@ const SimpleRichTextEditor: React.FC<SimpleRichTextEditorProps> = ({
   return (
     <div className="rich-text-editor">
       <style>{editorStyle}</style>
-      <ForwardedReactQuill
+      <ReactQuillWithRef
         ref={quillRef}
         theme="snow"
         value={editorHtml}
