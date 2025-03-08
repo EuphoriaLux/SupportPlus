@@ -54,8 +54,12 @@ const VariableModal: React.FC<VariableModalProps> = ({
     // Parse the template with the provided variable values
     const { content } = parseTemplate(template, values);
     
-    // Copy to clipboard directly from the component
-    copyToClipboard(content, 'Template copied to clipboard!')
+    // Copy to clipboard, specifying if this is rich text content
+    copyToClipboard(
+      content, 
+      'Template copied to clipboard!', 
+      !!template.isRichText // Ensure this is a boolean
+    )
       .then(() => {
         // Notify parent component that variables were applied
         onApply(values);

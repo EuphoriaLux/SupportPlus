@@ -41,6 +41,7 @@ function insertIntoGmail(content: string, isRichText: boolean): void {
     
     // Dispatch input event to ensure Gmail registers the change
     composerBody.dispatchEvent(new Event('input', { bubbles: true }));
+    composerBody.dispatchEvent(new Event('change', { bubbles: true }));
   }
 }
 
@@ -59,7 +60,10 @@ function insertIntoOutlook(content: string, isRichText: boolean): void {
       } else {
         composerBody.innerHTML = content.replace(/\n/g, '<br>');
       }
+      
+      // Make sure Outlook registers the change
       composerBody.dispatchEvent(new Event('input', { bubbles: true }));
+      composerBody.dispatchEvent(new Event('change', { bubbles: true }));
     } else {
       // Sometimes Outlook uses iframes
       const iframe = composerBody.querySelector('iframe');
@@ -69,6 +73,9 @@ function insertIntoOutlook(content: string, isRichText: boolean): void {
         } else {
           iframe.contentDocument.body.innerHTML = content.replace(/\n/g, '<br>');
         }
+        
+        // Try to dispatch events on the iframe document body
+        iframe.contentDocument.body.dispatchEvent(new Event('input', { bubbles: true }));
       }
     }
   }
@@ -84,8 +91,17 @@ function insertIntoFocusedElement(content: string, isRichText: boolean): void {
     if (activeElement instanceof HTMLInputElement || 
         activeElement instanceof HTMLTextAreaElement) {
       // For regular input elements, we can only insert plain text
-      activeElement.value = content;
+      // Strip HTML if this is rich text content
+      if (isRichText) {
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = content;
+        activeElement.value = tempDiv.textContent || tempDiv.innerText || '';
+      } else {
+        activeElement.value = content;
+      }
+      
       activeElement.dispatchEvent(new Event('input', { bubbles: true }));
+      activeElement.dispatchEvent(new Event('change', { bubbles: true }));
     } else if (activeElement.isContentEditable) {
       // For contentEditable elements, we can insert HTML
       if (isRichText) {
@@ -93,7 +109,9 @@ function insertIntoFocusedElement(content: string, isRichText: boolean): void {
       } else {
         activeElement.innerHTML = content.replace(/\n/g, '<br>');
       }
+      
       activeElement.dispatchEvent(new Event('input', { bubbles: true }));
+      activeElement.dispatchEvent(new Event('change', { bubbles: true }));
     }
   }
 }

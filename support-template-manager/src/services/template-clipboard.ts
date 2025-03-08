@@ -21,10 +21,11 @@ export const copyTemplate = async (
   console.log("Is rich text:", template.isRichText);
   
   // Copy to clipboard and show notification
+  // Make sure to pass the isRichText flag properly
   return copyToClipboard(
     content, 
     'Template copied to clipboard!', 
-    template.isRichText
+    !!template.isRichText // Ensure boolean value
   );
 };
 
@@ -39,7 +40,7 @@ export const copyRawTemplate = async (template: Template): Promise<void> => {
   return copyToClipboard(
     template.content, 
     'Raw template copied to clipboard (variables not replaced)',
-    template.isRichText
+    !!template.isRichText // Respect isRichText property
   );
 };
 

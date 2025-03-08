@@ -13,59 +13,114 @@ export const copyToClipboard = async (
   isHtml: boolean = false
 ): Promise<void> => {
   try {
-    // Use the modern clipboard API that supports HTML
-    if (navigator.clipboard && navigator.clipboard.write && isHtml) {
-      // For HTML content, use ClipboardItem API
-      const blob = new Blob([text], { type: 'text/html' });
-      const plainTextBlob = new Blob([stripHtml(text)], { type: 'text/plain' });
-      
-      const data = [
-        new ClipboardItem({
-          'text/html': blob,
-          'text/plain': plainTextBlob
-        })
-      ];
-      
-      await navigator.clipboard.write(data);
+    // For HTML content
+    if (isHtml) {
+      await copyHtmlToClipboard(text);
       showNotification(successMessage, 'success');
-      return Promise.resolve();
-    }
-    // Use standard text clipboard API
-    else if (navigator.clipboard && navigator.clipboard.writeText) {
-      const content = isHtml ? stripHtml(text) : text;
-      await navigator.clipboard.writeText(content);
-      showNotification(successMessage, 'success');
-      return Promise.resolve();
+      return;
     } 
-    // Fallback for older browsers
+    // For plain text
     else {
-      const textArea = document.createElement('textarea');
-      textArea.value = isHtml ? stripHtml(text) : text;
-      
-      // Make the textarea invisible
-      textArea.style.position = 'fixed';
-      textArea.style.left = '-999999px';
-      textArea.style.top = '-999999px';
-      document.body.appendChild(textArea);
-      
-      // Select and copy
-      textArea.focus();
-      textArea.select();
-      const successful = document.execCommand('copy');
-      document.body.removeChild(textArea);
-      
-      if (successful) {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(text);
         showNotification(successMessage, 'success');
-        return Promise.resolve();
+        return;
       } else {
-        showNotification('Failed to copy to clipboard', 'error');
-        return Promise.reject(new Error('Failed to copy using execCommand'));
+        // Fallback for older browsers
+        const textArea = document.createElement('textarea');
+        textArea.value = text;
+        
+        // Make the textarea invisible
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-999999px';
+        textArea.style.top = '-999999px';
+        document.body.appendChild(textArea);
+        
+        // Select and copy
+        textArea.focus();
+        textArea.select();
+        const successful = document.execCommand('copy');
+        document.body.removeChild(textArea);
+        
+        if (successful) {
+          showNotification(successMessage, 'success');
+          return;
+        } else {
+          throw new Error('Failed to copy using execCommand');
+        }
       }
     }
   } catch (error) {
     console.error('Failed to copy text to clipboard:', error);
     showNotification('Failed to copy to clipboard', 'error');
-    return Promise.reject(error);
+    throw error;
+  }
+};
+
+/**
+ * Copy HTML content to clipboard, maintaining formatting
+ */
+const copyHtmlToClipboard = async (html: string): Promise<void> => {
+  // Method 1: Use Clipboard API if available (modern browsers)
+  if (navigator.clipboard && typeof ClipboardItem !== 'undefined') {
+    try {
+      const plainText = stripHtml(html);
+      
+      // Create a ClipboardItem with both HTML and plain text versions
+      const item = new ClipboardItem({
+        'text/html': new Blob([html], { type: 'text/html' }),
+        'text/plain': new Blob([plainText], { type: 'text/plain' })
+      });
+      
+      await navigator.clipboard.write([item]);
+      return;
+    } catch (e) {
+      console.log('ClipboardItem API failed, trying fallback method', e);
+      // Continue to fallback methods if this fails
+    }
+  }
+  
+  // Method 2: Use document.execCommand
+  try {
+    // Create a temporary div with the HTML content
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = html;
+    tempDiv.setAttribute('contenteditable', 'true');
+    tempDiv.style.position = 'fixed';
+    tempDiv.style.left = '-9999px';
+    tempDiv.style.top = '0';
+    document.body.appendChild(tempDiv);
+    
+    // Select the content
+    const selection = window.getSelection();
+    if (selection) {
+      const range = document.createRange();
+      range.selectNodeContents(tempDiv);
+      selection.removeAllRanges();
+      selection.addRange(range);
+      
+      // Execute the copy command
+      const success = document.execCommand('copy');
+      
+      // Clean up
+      selection.removeAllRanges();
+      document.body.removeChild(tempDiv);
+      
+      if (success) {
+        return;
+      }
+    }
+    throw new Error('execCommand copy failed');
+  } catch (e) {
+    console.error('Fallback HTML copy failed', e);
+    
+    // Method 3: Last resort - just copy as plain text
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(stripHtml(html));
+      return;
+    }
+    
+    throw new Error('All clipboard methods failed');
   }
 };
 
