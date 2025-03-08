@@ -20,7 +20,8 @@ chrome.runtime.onInstalled.addListener((details) => {
           { name: 'agentName', description: 'Your name', defaultValue: '' },
           { name: 'teamName', description: 'Team name', defaultValue: 'Customer' },
         ],
-        language: 'EN', // Add language property
+        language: 'EN',
+        isRichText: false,
         createdAt: Date.now(),
         updatedAt: Date.now()
       },
@@ -38,7 +39,8 @@ chrome.runtime.onInstalled.addListener((details) => {
           { name: 'agentName', description: 'Your name', defaultValue: '' },
           { name: 'department', description: 'Your department', defaultValue: 'Technical' }
         ],
-        language: 'EN', // Add language property
+        language: 'EN',
+        isRichText: false,
         createdAt: Date.now(),
         updatedAt: Date.now()
       },
@@ -54,7 +56,27 @@ chrome.runtime.onInstalled.addListener((details) => {
           { name: 'agentName', description: 'Your name', defaultValue: '' },
           { name: 'teamName', description: 'Team name', defaultValue: 'Customer' }
         ],
-        language: 'EN', // Add language property
+        language: 'EN',
+        isRichText: false,
+        createdAt: Date.now(),
+        updatedAt: Date.now()
+      },
+      // Add a rich text example template
+      {
+        id: crypto.randomUUID(),
+        baseId: crypto.randomUUID(),
+        name: 'Rich Text Example',
+        category: 'Examples',
+        content: '<p>Hello <strong>{{customerName}}</strong>,</p><p>Thank you for contacting our support team about <em>{{issueDescription}}</em>.</p><ul><li>We have received your request</li><li>A support agent will review it shortly</li><li>You can expect a response within {{responseTime}} hours</li></ul><p>If you have any additional information to share, please reply to this email.</p><p>Best regards,<br>{{agentName}}<br><strong>{{teamName}} Support</strong></p>',
+        variables: [
+          { name: 'customerName', description: 'Customer\'s name', defaultValue: '' },
+          { name: 'issueDescription', description: 'Issue description', defaultValue: '' },
+          { name: 'responseTime', description: 'Response time in hours', defaultValue: '24' },
+          { name: 'agentName', description: 'Your name', defaultValue: '' },
+          { name: 'teamName', description: 'Team name', defaultValue: 'Customer' }
+        ],
+        language: 'EN',
+        isRichText: true,
         createdAt: Date.now(),
         updatedAt: Date.now()
       }
@@ -68,6 +90,23 @@ chrome.runtime.onInstalled.addListener((details) => {
     // Save initial templates to storage
     chrome.storage.sync.set({ [STORAGE_KEY]: initialTemplates }, () => {
       console.log('Initial templates created');
+    });
+  } else if (details.reason === 'update') {
+    // Check if we need to migrate templates to add isRichText property
+    chrome.storage.sync.get(STORAGE_KEY, (result) => {
+      const templates = result[STORAGE_KEY] || [];
+      const needsMigration = templates.some((t: any) => t.isRichText === undefined);
+      
+      if (needsMigration) {
+        const migratedTemplates = templates.map((t: any) => ({
+          ...t,
+          isRichText: t.isRichText || false
+        }));
+        
+        chrome.storage.sync.set({ [STORAGE_KEY]: migratedTemplates }, () => {
+          console.log('Templates migrated to include isRichText property');
+        });
+      }
     });
   }
 });

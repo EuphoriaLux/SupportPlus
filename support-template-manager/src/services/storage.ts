@@ -90,7 +90,8 @@ export const storageService = {
   addTranslation: async (
     baseTemplate: Template, 
     language: 'EN' | 'FR' | 'DE', 
-    content: string
+    content: string,
+    isRichText?: boolean
   ): Promise<Template> => {
     const templates = await storageService.getTemplates();
     const timestamp = Date.now();
@@ -105,6 +106,9 @@ export const storageService = {
       throw new Error(`A translation in ${language} already exists for "${baseTemplate.name}"`);
     }
     
+    // Use the rich text setting from the base template if not specified
+    const useRichText = isRichText !== undefined ? isRichText : baseTemplate.isRichText;
+    
     const newTranslation: Template = {
       id: crypto.randomUUID(),
       baseId: baseTemplate.baseId,
@@ -113,6 +117,7 @@ export const storageService = {
       content,
       variables: baseTemplate.variables,
       language,
+      isRichText: useRichText,
       createdAt: timestamp,
       updatedAt: timestamp
     };
@@ -253,13 +258,14 @@ export const storageService = {
   // Import data (templates and global variables)
   importData: async (data: { templates?: Template[], globalVariables?: Variable[] }): Promise<void> => {
     if (data.templates) {
-      // Make sure all templates have a baseId (for backwards compatibility)
-      const templatesWithBaseId = data.templates.map(template => ({
+      // Make sure all templates have a baseId and isRichText property (for backwards compatibility)
+      const templatesWithUpdates = data.templates.map(template => ({
         ...template,
-        baseId: template.baseId || template.id
+        baseId: template.baseId || template.id,
+        isRichText: template.isRichText || false
       }));
       
-      await storageService.saveTemplates(templatesWithBaseId);
+      await storageService.saveTemplates(templatesWithUpdates);
     }
     
     if (data.globalVariables) {
@@ -267,20 +273,29 @@ export const storageService = {
     }
   },
   
-  // Migrate existing templates to the new structure with baseId
+  // Migrate existing templates to the new structure with baseId and isRichText
   migrateTemplates: async (): Promise<void> => {
     const templates = await storageService.getTemplates();
     let needsMigration = false;
     
-    // Check if any template is missing a baseId
+    // Check if any template is missing a baseId or isRichText property
     const migratedTemplates = templates.map(template => {
+      const updates: Partial<Template> = {};
+      
       if (!template.baseId) {
+        updates.baseId = template.id;
         needsMigration = true;
-        return {
-          ...template,
-          baseId: template.id
-        };
       }
+      
+      if (template.isRichText === undefined) {
+        updates.isRichText = false;
+        needsMigration = true;
+      }
+      
+      if (Object.keys(updates).length > 0) {
+        return { ...template, ...updates };
+      }
+      
       return template;
     });
     

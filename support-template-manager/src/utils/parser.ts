@@ -5,6 +5,7 @@ const VARIABLE_REGEX = /\{\{([^}]+)\}\}/g;
 
 /**
  * Extract variable names from template content
+ * Works with both plain text and rich text (HTML) content
  */
 export const extractVariables = (content: string): string[] => {
   const variables: string[] = [];
@@ -27,6 +28,7 @@ export const extractVariables = (content: string): string[] => {
 
 /**
  * Parse a template with provided variable values
+ * Handles both plain text and rich text (HTML) content
  */
 export const parseTemplate = (
   template: Template, 

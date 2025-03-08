@@ -35447,6 +35447,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var react__WEBPACK_IMPORTED_MODULE_1___default = /*#__PURE__*/__webpack_require__.n(react__WEBPACK_IMPORTED_MODULE_1__);
 /* harmony import */ var _utils_parser__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ../utils/parser */ "./src/utils/parser.ts");
 /* harmony import */ var _services_storage__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ../services/storage */ "./src/services/storage.ts");
+/* harmony import */ var _SimpleRichTextEditor__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ./SimpleRichTextEditor */ "./src/components/SimpleRichTextEditor.tsx");
 var __awaiter = (undefined && undefined.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -35460,6 +35461,7 @@ var __awaiter = (undefined && undefined.__awaiter) || function (thisArg, _argume
 
 
 
+
 // Type guard to check if a string is a valid language code
 const isValidLanguage = (lang) => {
     return lang === 'EN' || lang === 'FR' || lang === 'DE';
@@ -35469,10 +35471,12 @@ const MultilingualTemplateForm = ({ template, onSave, onCancel }) => {
     const [category, setCategory] = (0,react__WEBPACK_IMPORTED_MODULE_1__.useState)((template === null || template === void 0 ? void 0 : template.category) || 'General');
     const [content, setContent] = (0,react__WEBPACK_IMPORTED_MODULE_1__.useState)((template === null || template === void 0 ? void 0 : template.content) || '');
     const [language, setLanguage] = (0,react__WEBPACK_IMPORTED_MODULE_1__.useState)((template === null || template === void 0 ? void 0 : template.language) || 'EN');
+    const [isRichText, setIsRichText] = (0,react__WEBPACK_IMPORTED_MODULE_1__.useState)((template === null || template === void 0 ? void 0 : template.isRichText) || false);
     const [variables, setVariables] = (0,react__WEBPACK_IMPORTED_MODULE_1__.useState)([]);
     const [templateGroup, setTemplateGroup] = (0,react__WEBPACK_IMPORTED_MODULE_1__.useState)(null);
     const [loading, setLoading] = (0,react__WEBPACK_IMPORTED_MODULE_1__.useState)(false);
     const [error, setError] = (0,react__WEBPACK_IMPORTED_MODULE_1__.useState)(null);
+    const [showRawEditor, setShowRawEditor] = (0,react__WEBPACK_IMPORTED_MODULE_1__.useState)(false);
     // Load template group data (all language versions of this template)
     (0,react__WEBPACK_IMPORTED_MODULE_1__.useEffect)(() => {
         const loadTemplateGroup = () => __awaiter(void 0, void 0, void 0, function* () {
@@ -35561,7 +35565,8 @@ const MultilingualTemplateForm = ({ template, onSave, onCancel }) => {
                 name,
                 category,
                 content,
-                language
+                language,
+                isRichText
             });
         }
         catch (err) {
@@ -35581,6 +35586,10 @@ const MultilingualTemplateForm = ({ template, onSave, onCancel }) => {
     // Determine if name/category should be editable
     const isNameEditable = isNewTemplate || (template && !isEditingExistingTranslation);
     const isCategoryEditable = isNameEditable;
+    // Toggle between rich text editor and raw HTML view
+    const toggleEditorView = () => {
+        setShowRawEditor(!showRawEditor);
+    };
     return ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("form", { onSubmit: handleSubmit, className: "space-y-4", children: [loading && (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { className: "text-center py-4", children: "Loading template data..." }), error && ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4", children: ["Error: ", error] })), templateGroup && ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "mb-4 p-4 bg-blue-50 rounded", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("h3", { className: "font-medium text-blue-800 mb-2", children: "Available Translations" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { className: "flex gap-2", children: ['EN', 'FR', 'DE'].map(lang => {
                             const hasTranslation = templateGroup.templates[lang] !== null;
                             const isCurrentLanguage = (template === null || template === void 0 ? void 0 : template.language) === lang;
@@ -35597,9 +35606,32 @@ const MultilingualTemplateForm = ({ template, onSave, onCancel }) => {
                             if (isValidLanguage(value)) {
                                 setLanguage(value);
                             }
-                        }, className: "w-full px-3 py-2 border rounded", disabled: !!template, children: getAvailableLanguages().map(lang => ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("option", { value: lang, children: lang === 'EN' ? 'English' : lang === 'FR' ? 'French' : 'German' }, lang))) }), !!template && ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("p", { className: "text-xs text-gray-500 mt-1", children: "Language cannot be changed for existing templates. Create a new translation instead." }))] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { className: "block text-sm font-medium text-gray-700 mb-1", children: "Template Content*" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("textarea", { value: content, onChange: (e) => setContent(e.target.value), className: "w-full px-3 py-2 border rounded font-mono", rows: 10, placeholder: "Hi {{customerName}},\\n\\nThank you for contacting us about {{issue}}.\\n\\nBest regards,\\n{{agentName}}", required: true }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("p", { className: "text-sm text-gray-500 mt-1", children: ["Use ", "{{variableName}}", " syntax for dynamic content"] })] }), variables.length > 0 && ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("h3", { className: "text-sm font-medium text-gray-700 mb-1", children: "Detected Variables:" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { className: "flex flex-wrap gap-2", children: variables.map(variable => ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("span", { className: "px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs", children: variable }, variable))) }), isEditingExistingTranslation && ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("p", { className: "text-xs text-blue-600 mt-2", children: "Try to keep the same variables across all translations for consistent functionality." }))] })), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "flex justify-end space-x-2 pt-4", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("button", { type: "button", onClick: onCancel, className: "px-4 py-2 border rounded hover:bg-gray-100", children: "Cancel" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("button", { type: "submit", className: "px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600", children: template ? 'Update Template' : 'Create Template' })] })] }));
+                        }, className: "w-full px-3 py-2 border rounded", disabled: !!template, children: getAvailableLanguages().map(lang => ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("option", { value: lang, children: lang === 'EN' ? 'English' : lang === 'FR' ? 'French' : 'German' }, lang))) }), !!template && ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("p", { className: "text-xs text-gray-500 mt-1", children: "Language cannot be changed for existing templates. Create a new translation instead." }))] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "flex items-center mb-2", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("input", { type: "checkbox", id: "isRichText", checked: isRichText, onChange: (e) => setIsRichText(e.target.checked), className: "mr-2" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { htmlFor: "isRichText", className: "text-sm font-medium text-gray-700", children: "Use Rich Text Formatting" }), isRichText && ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("button", { type: "button", onClick: toggleEditorView, className: "ml-auto px-3 py-1 text-xs border rounded hover:bg-gray-100", children: showRawEditor ? 'Show Rich Editor' : 'Show HTML Source' }))] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { className: "block text-sm font-medium text-gray-700 mb-1", children: "Template Content*" }), isRichText ? (showRawEditor ? ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("textarea", { value: content, onChange: (e) => setContent(e.target.value), className: "w-full px-3 py-2 border rounded font-mono", rows: 10, placeholder: "<p>Hi {{customerName}},</p><p>Thank you for contacting us.</p>", required: true })) : ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(_SimpleRichTextEditor__WEBPACK_IMPORTED_MODULE_4__["default"], { value: content, onChange: setContent, placeholder: "Write your template content here..." }))) : ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("textarea", { value: content, onChange: (e) => setContent(e.target.value), className: "w-full px-3 py-2 border rounded font-mono", rows: 10, placeholder: "Hi {{customerName}},\\n\\nThank you for contacting us about {{issue}}.\\n\\nBest regards,\\n{{agentName}}", required: true })), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("p", { className: "text-sm text-gray-500 mt-1", children: ["Use ", "{{variableName}}", " syntax for dynamic content", isRichText && ". Variables will also work in rich text mode."] })] }), variables.length > 0 && ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("h3", { className: "text-sm font-medium text-gray-700 mb-1", children: "Detected Variables:" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { className: "flex flex-wrap gap-2", children: variables.map(variable => ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("span", { className: "px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs", children: variable }, variable))) }), isEditingExistingTranslation && ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("p", { className: "text-xs text-blue-600 mt-2", children: "Try to keep the same variables across all translations for consistent functionality." }))] })), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "flex justify-end space-x-2 pt-4", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("button", { type: "button", onClick: onCancel, className: "px-4 py-2 border rounded hover:bg-gray-100", children: "Cancel" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("button", { type: "submit", className: "px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600", children: template ? 'Update Template' : 'Create Template' })] })] }));
 };
 /* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = (MultilingualTemplateForm);
+
+
+/***/ }),
+
+/***/ "./src/components/SimpleRichTextEditor.tsx":
+/*!*************************************************!*\
+  !*** ./src/components/SimpleRichTextEditor.tsx ***!
+  \*************************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "default": () => (__WEBPACK_DEFAULT_EXPORT__)
+/* harmony export */ });
+/* harmony import */ var react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! react/jsx-runtime */ "./node_modules/react/jsx-runtime.js");
+/* harmony import */ var _SimpleRichTextEditor__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./SimpleRichTextEditor */ "./src/components/SimpleRichTextEditor.tsx");
+
+
+// This is just a wrapper around SimpleRichTextEditor to avoid build errors
+const RichTextEditor = (props) => {
+    return (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(_SimpleRichTextEditor__WEBPACK_IMPORTED_MODULE_1__["default"], Object.assign({}, props));
+};
+/* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = (RichTextEditor);
 
 
 /***/ }),
@@ -35851,6 +35883,7 @@ __webpack_require__.r(__webpack_exports__);
 
 const VariableModal = ({ template, initialValues = {}, title = 'Fill Template Variables', buttonText = 'Apply Template', onApply, onCancel }) => {
     const [values, setValues] = (0,react__WEBPACK_IMPORTED_MODULE_1__.useState)(initialValues);
+    const [previewContent, setPreviewContent] = (0,react__WEBPACK_IMPORTED_MODULE_1__.useState)('');
     // Initialize values with defaults from template
     (0,react__WEBPACK_IMPORTED_MODULE_1__.useEffect)(() => {
         const defaultValues = template.variables.reduce((acc, variable) => {
@@ -35861,6 +35894,11 @@ const VariableModal = ({ template, initialValues = {}, title = 'Fill Template Va
         }, {});
         setValues(Object.assign(Object.assign({}, defaultValues), initialValues));
     }, [template, initialValues]);
+    // Update preview when values change
+    (0,react__WEBPACK_IMPORTED_MODULE_1__.useEffect)(() => {
+        const { content } = (0,_utils_parser__WEBPACK_IMPORTED_MODULE_2__.parseTemplate)(template, values);
+        setPreviewContent(content);
+    }, [template, values]);
     const handleChange = (name, value) => {
         setValues((prev) => (Object.assign(Object.assign({}, prev), { [name]: value })));
     };
@@ -35878,7 +35916,7 @@ const VariableModal = ({ template, initialValues = {}, title = 'Fill Template Va
             console.error('Error copying to clipboard:', error);
         });
     };
-    return ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { className: "fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50", children: (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bg-white rounded p-6 w-96 max-w-full", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("h2", { className: "text-lg font-bold mb-4", children: title }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("form", { onSubmit: handleSubmit, className: "space-y-4", children: [template.variables.map((variable) => ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { className: "block text-sm font-medium text-gray-700 mb-1", children: variable.description || variable.name }), variable.type === 'dropdown' && variable.options && variable.options.length > 0 ? ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("select", { value: values[variable.name] || '', onChange: (e) => handleChange(variable.name, e.target.value), className: "w-full px-3 py-2 border rounded", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("option", { value: "", children: "Select an option" }), variable.options.map((option, index) => ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("option", { value: option, children: option }, index)))] })) : variable.type === 'textarea' ? ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("textarea", { value: values[variable.name] || '', onChange: (e) => handleChange(variable.name, e.target.value), className: "w-full px-3 py-2 border rounded", rows: 3, placeholder: variable.defaultValue || `Value for ${variable.name}` })) : ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("input", { type: "text", value: values[variable.name] || '', onChange: (e) => handleChange(variable.name, e.target.value), className: "w-full px-3 py-2 border rounded", placeholder: variable.defaultValue || `Value for ${variable.name}` }))] }, variable.name))), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "flex justify-end gap-2 pt-2", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("button", { type: "button", onClick: onCancel, className: "px-4 py-2 border rounded", children: "Cancel" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("button", { type: "submit", className: "px-4 py-2 bg-blue-500 text-white rounded", children: buttonText })] })] })] }) }));
+    return ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { className: "fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto", children: (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "bg-white rounded p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("h2", { className: "text-lg font-bold mb-4", children: title }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "grid grid-cols-1 md:grid-cols-2 gap-6", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("h3", { className: "text-sm font-medium text-gray-700 mb-2", children: "Enter Variable Values" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("form", { onSubmit: handleSubmit, className: "space-y-4", children: template.variables.map((variable) => ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("label", { className: "block text-sm font-medium text-gray-700 mb-1", children: variable.description || variable.name }), variable.type === 'dropdown' && variable.options && variable.options.length > 0 ? ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("select", { value: values[variable.name] || '', onChange: (e) => handleChange(variable.name, e.target.value), className: "w-full px-3 py-2 border rounded", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("option", { value: "", children: "Select an option" }), variable.options.map((option, index) => ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("option", { value: option, children: option }, index)))] })) : variable.type === 'textarea' ? ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("textarea", { value: values[variable.name] || '', onChange: (e) => handleChange(variable.name, e.target.value), className: "w-full px-3 py-2 border rounded", rows: 3, placeholder: variable.defaultValue || `Value for ${variable.name}` })) : ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("input", { type: "text", value: values[variable.name] || '', onChange: (e) => handleChange(variable.name, e.target.value), className: "w-full px-3 py-2 border rounded", placeholder: variable.defaultValue || `Value for ${variable.name}` }))] }, variable.name))) })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("h3", { className: "text-sm font-medium text-gray-700 mb-2", children: "Template Preview" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { className: "border rounded-md p-4 bg-gray-50 h-64 overflow-y-auto", children: template.isRichText ? ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { className: "rich-text-preview", dangerouslySetInnerHTML: { __html: previewContent } })) : ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("pre", { className: "whitespace-pre-wrap font-mono text-sm", children: previewContent })) })] })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "flex justify-end gap-2 pt-6 mt-4 border-t", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("button", { type: "button", onClick: onCancel, className: "px-4 py-2 border rounded", children: "Cancel" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("button", { type: "button", onClick: handleSubmit, className: "px-4 py-2 bg-blue-500 text-white rounded", children: buttonText })] })] }) }));
 };
 /* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = (VariableModal);
 
@@ -35972,7 +36010,7 @@ const storageService = {
         return newTemplate;
     }),
     // Add a translation to an existing template
-    addTranslation: (baseTemplate, language, content) => __awaiter(void 0, void 0, void 0, function* () {
+    addTranslation: (baseTemplate, language, content, isRichText) => __awaiter(void 0, void 0, void 0, function* () {
         const templates = yield storageService.getTemplates();
         const timestamp = Date.now();
         // Check if a translation in this language already exists
@@ -35981,6 +36019,8 @@ const storageService = {
         if (existingTranslation) {
             throw new Error(`A translation in ${language} already exists for "${baseTemplate.name}"`);
         }
+        // Use the rich text setting from the base template if not specified
+        const useRichText = isRichText !== undefined ? isRichText : baseTemplate.isRichText;
         const newTranslation = {
             id: crypto.randomUUID(),
             baseId: baseTemplate.baseId,
@@ -35989,6 +36029,7 @@ const storageService = {
             content,
             variables: baseTemplate.variables,
             language,
+            isRichText: useRichText,
             createdAt: timestamp,
             updatedAt: timestamp
         };
@@ -36092,23 +36133,31 @@ const storageService = {
     // Import data (templates and global variables)
     importData: (data) => __awaiter(void 0, void 0, void 0, function* () {
         if (data.templates) {
-            // Make sure all templates have a baseId (for backwards compatibility)
-            const templatesWithBaseId = data.templates.map(template => (Object.assign(Object.assign({}, template), { baseId: template.baseId || template.id })));
-            yield storageService.saveTemplates(templatesWithBaseId);
+            // Make sure all templates have a baseId and isRichText property (for backwards compatibility)
+            const templatesWithUpdates = data.templates.map(template => (Object.assign(Object.assign({}, template), { baseId: template.baseId || template.id, isRichText: template.isRichText || false })));
+            yield storageService.saveTemplates(templatesWithUpdates);
         }
         if (data.globalVariables) {
             yield storageService.saveGlobalVariables(data.globalVariables);
         }
     }),
-    // Migrate existing templates to the new structure with baseId
+    // Migrate existing templates to the new structure with baseId and isRichText
     migrateTemplates: () => __awaiter(void 0, void 0, void 0, function* () {
         const templates = yield storageService.getTemplates();
         let needsMigration = false;
-        // Check if any template is missing a baseId
+        // Check if any template is missing a baseId or isRichText property
         const migratedTemplates = templates.map(template => {
+            const updates = {};
             if (!template.baseId) {
+                updates.baseId = template.id;
                 needsMigration = true;
-                return Object.assign(Object.assign({}, template), { baseId: template.id });
+            }
+            if (template.isRichText === undefined) {
+                updates.isRichText = false;
+                needsMigration = true;
+            }
+            if (Object.keys(updates).length > 0) {
+                return Object.assign(Object.assign({}, template), updates);
             }
             return template;
         });
@@ -36131,7 +36180,8 @@ const storageService = {
 __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
 /* harmony export */   copyToClipboard: () => (/* binding */ copyToClipboard),
-/* harmony export */   showNotification: () => (/* binding */ showNotification)
+/* harmony export */   showNotification: () => (/* binding */ showNotification),
+/* harmony export */   stripHtml: () => (/* binding */ stripHtml)
 /* harmony export */ });
 var __awaiter = (undefined && undefined.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
@@ -36144,23 +36194,41 @@ var __awaiter = (undefined && undefined.__awaiter) || function (thisArg, _argume
 };
 /**
  * Copy text to clipboard and show a success notification
+ * Supports both plain text and HTML content
  *
  * @param text Text to copy to clipboard
  * @param successMessage Optional success message to display
+ * @param isHtml Whether the text is HTML content
  * @returns Promise that resolves when the text is copied
  */
-const copyToClipboard = (text_1, ...args_1) => __awaiter(void 0, [text_1, ...args_1], void 0, function* (text, successMessage = 'Copied to clipboard!') {
+const copyToClipboard = (text_1, ...args_1) => __awaiter(void 0, [text_1, ...args_1], void 0, function* (text, successMessage = 'Copied to clipboard!', isHtml = false) {
     try {
-        // Try using the newer navigator.clipboard API
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-            yield navigator.clipboard.writeText(text);
+        // Use the modern clipboard API that supports HTML
+        if (navigator.clipboard && navigator.clipboard.write && isHtml) {
+            // For HTML content, use ClipboardItem API
+            const blob = new Blob([text], { type: 'text/html' });
+            const plainTextBlob = new Blob([stripHtml(text)], { type: 'text/plain' });
+            const data = [
+                new ClipboardItem({
+                    'text/html': blob,
+                    'text/plain': plainTextBlob
+                })
+            ];
+            yield navigator.clipboard.write(data);
+            showNotification(successMessage, 'success');
+            return Promise.resolve();
+        }
+        // Use standard text clipboard API
+        else if (navigator.clipboard && navigator.clipboard.writeText) {
+            const content = isHtml ? stripHtml(text) : text;
+            yield navigator.clipboard.writeText(content);
             showNotification(successMessage, 'success');
             return Promise.resolve();
         }
         // Fallback for older browsers
         else {
             const textArea = document.createElement('textarea');
-            textArea.value = text;
+            textArea.value = isHtml ? stripHtml(text) : text;
             // Make the textarea invisible
             textArea.style.position = 'fixed';
             textArea.style.left = '-999999px';
@@ -36187,6 +36255,17 @@ const copyToClipboard = (text_1, ...args_1) => __awaiter(void 0, [text_1, ...arg
         return Promise.reject(error);
     }
 });
+/**
+ * Strip HTML tags from a string to get plain text
+ *
+ * @param html HTML string to strip
+ * @returns Plain text without HTML tags
+ */
+const stripHtml = (html) => {
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = html;
+    return tempDiv.textContent || tempDiv.innerText || '';
+};
 /**
  * Show a notification with the specified message and type
  *
@@ -36372,6 +36451,7 @@ __webpack_require__.r(__webpack_exports__);
 const VARIABLE_REGEX = /\{\{([^}]+)\}\}/g;
 /**
  * Extract variable names from template content
+ * Works with both plain text and rich text (HTML) content
  */
 const extractVariables = (content) => {
     const variables = [];
@@ -36389,6 +36469,7 @@ const extractVariables = (content) => {
 };
 /**
  * Parse a template with provided variable values
+ * Handles both plain text and rich text (HTML) content
  */
 const parseTemplate = (template, variableValues = {}) => {
     let parsedContent = template.content;
@@ -36725,7 +36806,8 @@ const Options = () => {
                     category: data.category,
                     content: data.content,
                     variables: [],
-                    language: data.language
+                    language: data.language,
+                    isRichText: data.isRichText
                 });
             }
             else if (editMode === 'edit' && currentTemplate) {
@@ -36735,14 +36817,15 @@ const Options = () => {
                         name: data.name,
                         category: data.category,
                         content: data.content,
-                        language: data.language
+                        language: data.language,
+                        isRichText: data.isRichText
                     });
                 }
                 else {
                     // Create a new translation
                     const templateToTranslate = templates.find(t => t.baseId === currentTemplate.baseId);
                     if (templateToTranslate) {
-                        yield _services_storage__WEBPACK_IMPORTED_MODULE_3__.storageService.addTranslation(templateToTranslate, data.language, data.content);
+                        yield _services_storage__WEBPACK_IMPORTED_MODULE_3__.storageService.addTranslation(templateToTranslate, data.language, data.content, data.isRichText);
                     }
                     else {
                         throw new Error('Could not find template to translate');

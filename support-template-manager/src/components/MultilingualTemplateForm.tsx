@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Template, Variable, TemplateGroup } from '../types';
 import { extractVariables } from '../utils/parser';
 import { storageService } from '../services/storage';
+import SimpleRichTextEditor from './SimpleRichTextEditor';
 
 interface MultilingualTemplateFormProps {
   template?: Template;
@@ -10,6 +11,7 @@ interface MultilingualTemplateFormProps {
     category: string; 
     content: string;
     language: 'EN' | 'FR' | 'DE';
+    isRichText: boolean;
   }) => void;
   onCancel: () => void;
 }
@@ -28,10 +30,12 @@ const MultilingualTemplateForm: React.FC<MultilingualTemplateFormProps> = ({
   const [category, setCategory] = useState(template?.category || 'General');
   const [content, setContent] = useState(template?.content || '');
   const [language, setLanguage] = useState<'EN' | 'FR' | 'DE'>(template?.language || 'EN');
+  const [isRichText, setIsRichText] = useState(template?.isRichText || false);
   const [variables, setVariables] = useState<string[]>([]);
   const [templateGroup, setTemplateGroup] = useState<TemplateGroup | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showRawEditor, setShowRawEditor] = useState(false);
 
   // Load template group data (all language versions of this template)
   useEffect(() => {
@@ -132,7 +136,8 @@ const MultilingualTemplateForm: React.FC<MultilingualTemplateFormProps> = ({
         name,
         category,
         content,
-        language
+        language,
+        isRichText
       });
     } catch (err) {
       alert('Failed to save template: ' + (err as Error).message);
@@ -157,6 +162,11 @@ const MultilingualTemplateForm: React.FC<MultilingualTemplateFormProps> = ({
   // Determine if name/category should be editable
   const isNameEditable = isNewTemplate || (template && !isEditingExistingTranslation);
   const isCategoryEditable = isNameEditable;
+
+  // Toggle between rich text editor and raw HTML view
+  const toggleEditorView = () => {
+    setShowRawEditor(!showRawEditor);
+  };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
@@ -272,20 +282,65 @@ const MultilingualTemplateForm: React.FC<MultilingualTemplateFormProps> = ({
         )}
       </div>
 
+      <div className="flex items-center mb-2">
+        <input
+          type="checkbox"
+          id="isRichText"
+          checked={isRichText}
+          onChange={(e) => setIsRichText(e.target.checked)}
+          className="mr-2"
+        />
+        <label htmlFor="isRichText" className="text-sm font-medium text-gray-700">
+          Use Rich Text Formatting
+        </label>
+        
+        {isRichText && (
+          <button
+            type="button"
+            onClick={toggleEditorView}
+            className="ml-auto px-3 py-1 text-xs border rounded hover:bg-gray-100"
+          >
+            {showRawEditor ? 'Show Rich Editor' : 'Show HTML Source'}
+          </button>
+        )}
+      </div>
+
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">
           Template Content*
         </label>
-        <textarea
-          value={content}
-          onChange={(e) => setContent(e.target.value)}
-          className="w-full px-3 py-2 border rounded font-mono"
-          rows={10}
-          placeholder="Hi {{customerName}},\n\nThank you for contacting us about {{issue}}.\n\nBest regards,\n{{agentName}}"
-          required
-        />
+        
+        {isRichText ? (
+          showRawEditor ? (
+            <textarea
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              className="w-full px-3 py-2 border rounded font-mono"
+              rows={10}
+              placeholder="<p>Hi {{customerName}},</p><p>Thank you for contacting us.</p>"
+              required
+            />
+          ) : (
+            <SimpleRichTextEditor
+              value={content}
+              onChange={setContent}
+              placeholder="Write your template content here..."
+            />
+          )
+        ) : (
+          <textarea
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            className="w-full px-3 py-2 border rounded font-mono"
+            rows={10}
+            placeholder="Hi {{customerName}},\n\nThank you for contacting us about {{issue}}.\n\nBest regards,\n{{agentName}}"
+            required
+          />
+        )}
+        
         <p className="text-sm text-gray-500 mt-1">
           Use {"{{variableName}}"} syntax for dynamic content
+          {isRichText && ". Variables will also work in rich text mode."}
         </p>
       </div>
 

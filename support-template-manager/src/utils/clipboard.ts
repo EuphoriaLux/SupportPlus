@@ -1,25 +1,46 @@
 /**
  * Copy text to clipboard and show a success notification
+ * Supports both plain text and HTML content
  * 
  * @param text Text to copy to clipboard
  * @param successMessage Optional success message to display
+ * @param isHtml Whether the text is HTML content
  * @returns Promise that resolves when the text is copied
  */
 export const copyToClipboard = async (
   text: string, 
-  successMessage: string = 'Copied to clipboard!'
+  successMessage: string = 'Copied to clipboard!',
+  isHtml: boolean = false
 ): Promise<void> => {
   try {
-    // Try using the newer navigator.clipboard API
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      await navigator.clipboard.writeText(text);
+    // Use the modern clipboard API that supports HTML
+    if (navigator.clipboard && navigator.clipboard.write && isHtml) {
+      // For HTML content, use ClipboardItem API
+      const blob = new Blob([text], { type: 'text/html' });
+      const plainTextBlob = new Blob([stripHtml(text)], { type: 'text/plain' });
+      
+      const data = [
+        new ClipboardItem({
+          'text/html': blob,
+          'text/plain': plainTextBlob
+        })
+      ];
+      
+      await navigator.clipboard.write(data);
+      showNotification(successMessage, 'success');
+      return Promise.resolve();
+    }
+    // Use standard text clipboard API
+    else if (navigator.clipboard && navigator.clipboard.writeText) {
+      const content = isHtml ? stripHtml(text) : text;
+      await navigator.clipboard.writeText(content);
       showNotification(successMessage, 'success');
       return Promise.resolve();
     } 
     // Fallback for older browsers
     else {
       const textArea = document.createElement('textarea');
-      textArea.value = text;
+      textArea.value = isHtml ? stripHtml(text) : text;
       
       // Make the textarea invisible
       textArea.style.position = 'fixed';
@@ -46,6 +67,18 @@ export const copyToClipboard = async (
     showNotification('Failed to copy to clipboard', 'error');
     return Promise.reject(error);
   }
+};
+
+/**
+ * Strip HTML tags from a string to get plain text
+ * 
+ * @param html HTML string to strip
+ * @returns Plain text without HTML tags
+ */
+export const stripHtml = (html: string): string => {
+  const tempDiv = document.createElement('div');
+  tempDiv.innerHTML = html;
+  return tempDiv.textContent || tempDiv.innerText || '';
 };
 
 /**

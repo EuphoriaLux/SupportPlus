@@ -211,6 +211,7 @@ const Options = () => {
     category: string;
     content: string;
     language: 'EN' | 'FR' | 'DE';
+    isRichText: boolean;
   }) => {
     try {
       if (editMode === 'create') {
@@ -220,7 +221,8 @@ const Options = () => {
           category: data.category,
           content: data.content,
           variables: [],
-          language: data.language
+          language: data.language,
+          isRichText: data.isRichText
         });
       } else if (editMode === 'edit' && currentTemplate) {
         if (currentTemplate.id) {
@@ -229,7 +231,8 @@ const Options = () => {
             name: data.name,
             category: data.category,
             content: data.content,
-            language: data.language
+            language: data.language,
+            isRichText: data.isRichText
           });
         } else {
           // Create a new translation
@@ -238,7 +241,8 @@ const Options = () => {
             await storageService.addTranslation(
               templateToTranslate,
               data.language,
-              data.content
+              data.content,
+              data.isRichText
             );
           } else {
             throw new Error('Could not find template to translate');
