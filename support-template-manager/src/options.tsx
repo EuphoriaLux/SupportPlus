@@ -72,6 +72,52 @@ const Options = () => {
     }
   };
 
+    // Add this function to your Options component
+  const handleOnTranslate = (template: Template) => {
+    // Show available languages to add translations for
+    const availableLanguages: ('EN' | 'FR' | 'DE')[] = ['EN', 'FR', 'DE'];
+    
+    // Find existing translations
+    const translations = templates.filter(t => 
+      t.baseId === template.baseId && 
+      t.id !== template.id
+    );
+    
+    // Get languages that already have translations
+    const existingLanguages = [
+      template.language || 'EN',
+      ...translations.map(t => t.language || 'EN')
+    ] as ('EN' | 'FR' | 'DE')[];
+    
+    // Get languages that need translations
+    const missingLanguages = availableLanguages.filter(
+      lang => !existingLanguages.includes(lang)
+    );
+    
+    if (missingLanguages.length === 0) {
+      alert('This template already has translations in all languages.');
+      return;
+    }
+    
+    // Ask user which language to add
+    let languageOptions = '';
+    missingLanguages.forEach(lang => {
+      const langName = lang === 'EN' ? 'English' : lang === 'FR' ? 'French' : 'German';
+      languageOptions += `- ${lang} (${langName})\n`;
+    });
+    
+    const selectedLang = prompt(
+      `Select a language to add a translation for "${template.name}":\n${languageOptions}`,
+      missingLanguages[0]
+    ) as 'EN' | 'FR' | 'DE' | null;
+    
+    if (!selectedLang || !missingLanguages.includes(selectedLang)) {
+      return; // Invalid selection or user cancelled
+    }
+    
+    // Create a new translation
+    handleCreateTranslation(template, selectedLang);
+  };
   // Load templates and global variables from storage
   const loadTemplates = async () => {
     try {
@@ -644,54 +690,18 @@ const Options = () => {
             onEdit={handleEdit}
             onDelete={handleDeleteTemplate}
             onCopy={handleCopyTemplate}
-            onTranslate={(template) => {
-              // Show available languages to add translations for
-              const availableLanguages: ('EN' | 'FR' | 'DE')[] = ['EN', 'FR', 'DE'];
-              
-              // Find existing translations
-              const translations = templates.filter(t => 
-                t.baseId === template.baseId && 
-                t.id !== template.id
-              );
-              
-              // Get languages that already have translations
-              const existingLanguages = [
-                template.language || 'EN',
-                ...translations.map(t => t.language || 'EN')
-              ] as ('EN' | 'FR' | 'DE')[];
-              
-              // Get languages that need translations
-              const missingLanguages = availableLanguages.filter(
-                lang => !existingLanguages.includes(lang)
-              );
-              
-              if (missingLanguages.length === 0) {
-                alert('This template already has translations in all languages.');
-                return;
+            onTranslate={handleOnTranslate}
+            onLanguageSelect={(templateId) => {
+              // Find the template by ID and edit it
+              const template = templates.find(t => t.id === templateId);
+              if (template) {
+                handleEdit(template);
               }
-              
-              // Ask user which language to add
-              let languageOptions = '';
-              missingLanguages.forEach(lang => {
-                const langName = lang === 'EN' ? 'English' : lang === 'FR' ? 'French' : 'German';
-                languageOptions += `- ${lang} (${langName})\n`;
-              });
-              
-              const selectedLang = prompt(
-                `Select a language to add a translation for "${template.name}":\n${languageOptions}`,
-                missingLanguages[0]
-              ) as 'EN' | 'FR' | 'DE' | null;
-              
-              if (!selectedLang || !missingLanguages.includes(selectedLang)) {
-                return; // Invalid selection or user cancelled
-              }
-              
-              // Create a new translation
-              handleCreateTranslation(template, selectedLang);
             }}
           />
         </>
       )}
+
 
       {/* Multilingual Tab Content */}
       {activeTab === 'multilingual' && (

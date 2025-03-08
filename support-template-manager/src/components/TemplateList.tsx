@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Template } from '../types';
 import TemplateItem from './TemplateItem';
 
@@ -9,6 +9,7 @@ interface TemplateListProps {
   onDelete: (templateId: string) => void;
   onCopy: (template: Template, e: React.MouseEvent) => void;
   onTranslate: (template: Template) => void;
+  onLanguageSelect: (templateId: string) => void;
 }
 
 const TemplateList: React.FC<TemplateListProps> = ({ 
@@ -17,8 +18,20 @@ const TemplateList: React.FC<TemplateListProps> = ({
   onEdit, 
   onDelete, 
   onCopy,
-  onTranslate
+  onTranslate,
+  onLanguageSelect
 }) => {
+  // Track expanded template rows
+  const [expandedTemplates, setExpandedTemplates] = useState<string[]>([]);
+  
+  const toggleExpanded = (templateId: string) => {
+    setExpandedTemplates(prev => 
+      prev.includes(templateId) 
+        ? prev.filter(id => id !== templateId) 
+        : [...prev, templateId]
+    );
+  };
+
   if (templates.length === 0) {
     return (
       <div className="bg-white shadow-md rounded p-12 text-center">
@@ -42,7 +55,10 @@ const TemplateList: React.FC<TemplateListProps> = ({
               Name
             </th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Category/Language
+              Category
+            </th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Languages
             </th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               Content Preview
@@ -65,6 +81,9 @@ const TemplateList: React.FC<TemplateListProps> = ({
               onDelete={onDelete}
               onCopy={onCopy}
               onTranslate={onTranslate}
+              onLanguageSelect={onLanguageSelect}
+              expanded={expandedTemplates.includes(template.id)}
+              toggleExpanded={() => toggleExpanded(template.id)}
             />
           ))}
         </tbody>
