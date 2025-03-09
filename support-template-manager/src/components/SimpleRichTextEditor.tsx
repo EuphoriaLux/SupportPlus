@@ -1,8 +1,6 @@
 import React, { useEffect, useRef, useState, forwardRef, useImperativeHandle, useCallback } from 'react';
-import ReactQuill from 'react-quill';
-import 'react-quill/dist/quill.snow.css';
-// Import Quill directly for direct access to its features
-import Quill from 'quill';
+import ReactQuill from 'react-quill-new';
+import 'react-quill-new/dist/quill.snow.css';
 
 // Custom CSS to integrate with your app's styles
 const editorStyle = `
@@ -42,7 +40,7 @@ interface SimpleRichTextEditorProps {
 }
 
 // Create a ref-based version of ReactQuill to avoid findDOMNode
-const ReactQuillWithRef = forwardRef((props: any, ref) => {
+const ReactQuillWithRef = forwardRef<any, any>((props, ref) => {
   const quillRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   
@@ -165,11 +163,11 @@ const SimpleRichTextEditor: React.FC<SimpleRichTextEditorProps> = ({
     }
   };
 
-  // Define formats that the editor should allow
+  // Define formats that the editor should allow - Quill 2.x compatible format names
   const formats = [
     'header',
     'bold', 'italic', 'underline', 'strike',
-    'list', 'bullet',
+    'list',  // In Quill 2.x, 'list' includes both bullet and ordered lists
     'link'
   ];
 

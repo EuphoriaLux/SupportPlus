@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { forwardRef } from 'react';
 import SimpleRichTextEditor from './SimpleRichTextEditor';
 
 interface RichTextEditorProps {
@@ -7,9 +7,12 @@ interface RichTextEditorProps {
   placeholder?: string;
 }
 
-// This is a wrapper around SimpleRichTextEditor to ensure backward compatibility
-const RichTextEditor: React.FC<RichTextEditorProps> = (props) => {
+// Create a forwardRef version of the component to avoid findDOMNode warnings
+const RichTextEditor = forwardRef<any, RichTextEditorProps>((props, ref) => {
   return <SimpleRichTextEditor {...props} />;
-};
+});
+
+// Set display name for better debugging
+RichTextEditor.displayName = 'RichTextEditor';
 
 export default RichTextEditor;

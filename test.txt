@@ -1,1 +1,242 @@
-<p>Hi <strong></strong>,</p><p><br></p><p>Thank you for reaching out to our support team! We're happy to help you with your inquiry about <strong>our product</strong>. I'll look into this right away and get back to you within <strong>24</strong> hours. Best regards,</p><p><br></p><p> <strong></strong> <strong>Customer</strong> Support</p>
+{
+  "templates": [
+    {
+      "baseId": "4e38795d-9428-42da-b502-eb6b76e9213a",
+      "category": "General",
+      "content": "<p>Hi {{customerName}},</p><p>Thank you for reaching out to our support team! We're happy to help you with your inquiry about {{productName}}.</p><p>I'll look into this right away and get back to you within {{responseTime}} hours.</p><p>Best regards,<br>{{agentName}}<br>{{teamName}} Support</p>",
+      "createdAt": 1741544591919,
+      "id": "4e38795d-9428-42da-b502-eb6b76e9213a",
+      "isRichText": true,
+      "language": "EN",
+      "name": "Welcome Response",
+      "updatedAt": 1741544591919,
+      "variables": [
+        {
+          "defaultValue": "",
+          "description": "Customer's name",
+          "name": "customerName"
+        },
+        {
+          "defaultValue": "our product",
+          "description": "Product name",
+          "name": "productName"
+        },
+        {
+          "defaultValue": "24",
+          "description": "Response time in hours",
+          "name": "responseTime"
+        },
+        {
+          "defaultValue": "",
+          "description": "Your name",
+          "name": "agentName"
+        },
+        {
+          "defaultValue": "Customer",
+          "description": "Team name",
+          "name": "teamName"
+        }
+      ]
+    },
+    {
+      "baseId": "65dcabe5-a7a7-48ef-83ff-6c0c71690ec1",
+      "category": "Technical",
+      "content": "<p>Hello {{customerName}},</p><p>I understand you're experiencing an issue with {{feature}}. I apologize for any inconvenience this has caused.</p><p>To help troubleshoot this issue, could you please provide the following information:</p><ol><li>What version of {{productName}} are you currently using?</li><li>When did you first notice this issue?</li><li>{{additionalQuestions}}</li></ol><p>Once I have this information, I'll be better equipped to help resolve your issue.</p><p>Thank you for your patience,<br>{{agentName}}<br>{{department}} Support Team</p>",
+      "createdAt": 1741544591919,
+      "id": "65dcabe5-a7a7-48ef-83ff-6c0c71690ec1",
+      "isRichText": true,
+      "language": "EN",
+      "name": "Technical Issue Response",
+      "updatedAt": 1741544591919,
+      "variables": [
+        {
+          "defaultValue": "",
+          "description": "Customer's name",
+          "name": "customerName"
+        },
+        {
+          "defaultValue": "",
+          "description": "Feature with issue",
+          "name": "feature"
+        },
+        {
+          "defaultValue": "our product",
+          "description": "Product name",
+          "name": "productName"
+        },
+        {
+          "defaultValue": "Have you tried clearing your cache and cookies?",
+          "description": "Any additional questions",
+          "name": "additionalQuestions"
+        },
+        {
+          "defaultValue": "",
+          "description": "Your name",
+          "name": "agentName"
+        },
+        {
+          "defaultValue": "Technical",
+          "description": "Your department",
+          "name": "department"
+        }
+      ]
+    },
+    {
+      "baseId": "9672989e-f128-4ed0-a74d-c33b6548450c",
+      "category": "General",
+      "content": "<p>Hi {{customerName}},</p><p>I wanted to follow up on your recent support request regarding {{issueDescription}}.</p><p>Has the solution we provided resolved your issue? If you're still experiencing problems or have any questions, please don't hesitate to let me know.</p><p>Your feedback is important to us as we strive to provide the best possible support.</p><p>Best regards,<br>{{agentName}}<br>{{teamName}} Support</p>",
+      "createdAt": 1741544591919,
+      "id": "9672989e-f128-4ed0-a74d-c33b6548450c",
+      "isRichText": true,
+      "language": "EN",
+      "name": "Follow-up Template",
+      "updatedAt": 1741544591919,
+      "variables": [
+        {
+          "defaultValue": "",
+          "description": "Customer's name",
+          "name": "customerName"
+        },
+        {
+          "defaultValue": "",
+          "description": "Brief description of the issue",
+          "name": "issueDescription"
+        },
+        {
+          "defaultValue": "",
+          "description": "Your name",
+          "name": "agentName"
+        },
+        {
+          "defaultValue": "Customer",
+          "description": "Team name",
+          "name": "teamName"
+        }
+      ]
+    },
+    {
+      "baseId": "fb84e08b-1ad7-416a-9158-c4963ea15ec9",
+      "category": "Examples",
+      "content": "<p>Hello <strong>{{customerName}}</strong>,</p><p>Thank you for contacting our support team about <em>{{issueDescription}}</em>.</p><ul><li>We have received your request</li><li>A support agent will review it shortly</li><li>You can expect a response within {{responseTime}} hours</li></ul><p>If you have any additional information to share, please reply to this email.</p><p>Best regards,<br>{{agentName}}<br><strong>{{teamName}} Support</strong></p>",
+      "createdAt": 1741544591919,
+      "id": "fb84e08b-1ad7-416a-9158-c4963ea15ec9",
+      "isRichText": true,
+      "language": "EN",
+      "name": "Rich Text Example",
+      "updatedAt": 1741544591919,
+      "variables": [
+        {
+          "defaultValue": "",
+          "description": "Customer's name",
+          "name": "customerName"
+        },
+        {
+          "defaultValue": "",
+          "description": "Issue description",
+          "name": "issueDescription"
+        },
+        {
+          "defaultValue": "24",
+          "description": "Response time in hours",
+          "name": "responseTime"
+        },
+        {
+          "defaultValue": "",
+          "description": "Your name",
+          "name": "agentName"
+        },
+        {
+          "defaultValue": "Customer",
+          "description": "Team name",
+          "name": "teamName"
+        }
+      ]
+    },
+    {
+      "baseId": "4e38795d-9428-42da-b502-eb6b76e9213a",
+      "category": "General",
+      "content": "<p>uiouiououi <strong>{{issueDescription}} {{productName}} {{teamName}} </strong></p>",
+      "createdAt": 1741544674130,
+      "id": "a4330862-ab8a-4dea-99e4-6b068e3af28d",
+      "isRichText": true,
+      "language": "FR",
+      "name": "Welcome Response",
+      "updatedAt": 1741544674130,
+      "variables": [
+        {
+          "defaultValue": "",
+          "description": "Customer's name",
+          "name": "customerName"
+        },
+        {
+          "defaultValue": "our product",
+          "description": "Product name",
+          "name": "productName"
+        },
+        {
+          "defaultValue": "24",
+          "description": "Response time in hours",
+          "name": "responseTime"
+        },
+        {
+          "defaultValue": "",
+          "description": "Your name",
+          "name": "agentName"
+        },
+        {
+          "defaultValue": "Customer",
+          "description": "Team name",
+          "name": "teamName"
+        }
+      ]
+    }
+  ],
+  "globalVariables": [
+    {
+      "defaultValue": "",
+      "description": "Global value for customerName",
+      "name": "customerName"
+    },
+    {
+      "defaultValue": "",
+      "description": "Global value for productName",
+      "name": "productName"
+    },
+    {
+      "defaultValue": "",
+      "description": "Global value for responseTime",
+      "name": "responseTime"
+    },
+    {
+      "defaultValue": "",
+      "description": "Global value for agentName",
+      "name": "agentName"
+    },
+    {
+      "defaultValue": "",
+      "description": "Global value for teamName",
+      "name": "teamName"
+    },
+    {
+      "defaultValue": "",
+      "description": "Global value for feature",
+      "name": "feature"
+    },
+    {
+      "defaultValue": "",
+      "description": "Global value for additionalQuestions",
+      "name": "additionalQuestions"
+    },
+    {
+      "defaultValue": "",
+      "description": "Global value for department",
+      "name": "department"
+    },
+    {
+      "defaultValue": "",
+      "description": "Global value for issueDescription",
+      "name": "issueDescription"
+    }
+  ],
+  "exportDate": "2025-03-09T18:24:59.525Z"
+}

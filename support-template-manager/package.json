@@ -16,10 +16,13 @@
     "author": "Your Name",
     "license": "MIT",
     "devDependencies": {
+        "@babel/core": "^7.26.9",
+        "@babel/preset-env": "^7.26.9",
         "@types/chrome": "^0.0.246",
         "@types/jest": "^29.5.4",
         "@types/react": "^18.2.21",
         "@types/react-dom": "^18.2.7",
+        "babel-loader": "^10.0.0",
         "copy-webpack-plugin": "^11.0.0",
         "css-loader": "^6.11.0",
         "html-webpack-plugin": "^5.6.3",
@@ -36,6 +39,7 @@
         "react-dom": "^18.3.1",
         "react-hook-form": "^7.54.2",
         "react-quill": "^2.0.0",
+        "react-quill-new": "^3.1.0",
         "tailwindcss": "^3.4.17"
     }
 }

@@ -38,6 +38,9 @@ function insertIntoGmail(content: string): void {
     // Dispatch input event to ensure Gmail registers the change
     composerBody.dispatchEvent(new Event('input', { bubbles: true }));
     composerBody.dispatchEvent(new Event('change', { bubbles: true }));
+  } else {
+    // If composer not found immediately, set up a MutationObserver to detect when it appears
+    setupComposerObserver('gmail');
   }
 }
 
@@ -66,7 +69,57 @@ function insertIntoOutlook(content: string): void {
         iframe.contentDocument.body.dispatchEvent(new Event('input', { bubbles: true }));
       }
     }
+  } else {
+    // If composer not found immediately, set up a MutationObserver to detect when it appears
+    setupComposerObserver('outlook');
   }
+}
+
+/**
+ * Setup a MutationObserver to detect when a composer is added to the DOM
+ * This replaces the deprecated DOMNodeInserted event
+ */
+function setupComposerObserver(platform: 'gmail' | 'outlook'): void {
+  // Content to insert when composer is found
+  const pendingContent = window.localStorage.getItem('pending_template_content');
+  if (!pendingContent) return;
+  
+  // Create a MutationObserver to watch for changes to the DOM
+  const observer = new MutationObserver((mutations) => {
+    let composerFound = false;
+    
+    if (platform === 'gmail') {
+      const composerBody = document.querySelector('[role="textbox"][aria-label*="Body"]');
+      if (composerBody) {
+        composerFound = true;
+        insertIntoGmail(pendingContent);
+      }
+    } else if (platform === 'outlook') {
+      const composerBody = document.querySelector('[aria-label*="Message body"]');
+      if (composerBody) {
+        composerFound = true;
+        insertIntoOutlook(pendingContent);
+      }
+    }
+    
+    // If composer is found, disconnect the observer and clear pending content
+    if (composerFound) {
+      observer.disconnect();
+      window.localStorage.removeItem('pending_template_content');
+    }
+  });
+  
+  // Start observing the document body for added nodes
+  observer.observe(document.body, { 
+    childList: true, 
+    subtree: true 
+  });
+  
+  // Set a timeout to stop the observer after 10 seconds
+  setTimeout(() => {
+    observer.disconnect();
+    window.localStorage.removeItem('pending_template_content');
+  }, 10000);
 }
 
 /**
