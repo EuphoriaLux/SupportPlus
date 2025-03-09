@@ -60060,6 +60060,7 @@ __webpack_require__.r(__webpack_exports__);
 
 
 
+// Fix: Use the correct CSS import path from node_modules
 
 // Custom CSS to integrate with your app's styles
 const editorStyle = `
@@ -60088,8 +60089,52 @@ const editorStyle = `
     border-radius: 4px;
     font-weight: bold;
     white-space: nowrap;
+    border: 1px solid #93c5fd;
+  }
+  
+  /* Styles for support-specific elements */
+  .rich-text-editor .ql-editor .support-note {
+    background-color: #fdf8c3;
+    padding: 8px;
+    border-left: 3px solid #f7df1e;
+    margin-bottom: 1em;
+  }
+  
+  .rich-text-editor .ql-editor .warning-note {
+    background-color: #ffecec;
+    padding: 8px;
+    border-left: 3px solid #dc3545;
+    margin-bottom: 1em;
+  }
+  
+  .rich-text-editor .ql-editor .info-note {
+    background-color: #e6f4ff;
+    padding: 8px;
+    border-left: 3px solid #0d6efd;
+    margin-bottom: 1em;
+  }
+  
+  /* Expanded toolbar section toggle */
+  .toolbar-expander {
+    display: flex;
+    justify-content: center;
+    margin-top: 4px;
+    font-size: 12px;
+    color: #666;
+    cursor: pointer;
+  }
+  
+  .toolbar-expander:hover {
+    color: #333;
   }
 `;
+// Define additional formats for advanced styling
+const customFormats = [
+    { label: 'Support Note', className: 'support-note', wrapperTag: 'div' },
+    { label: 'Warning Note', className: 'warning-note', wrapperTag: 'div' },
+    { label: 'Info Note', className: 'info-note', wrapperTag: 'div' },
+    { label: 'Code Block', className: 'code-block', wrapperTag: 'pre' },
+];
 // Create a ref-based version of ReactQuill to avoid findDOMNode
 const ReactQuillWithRef = (0,react__WEBPACK_IMPORTED_MODULE_1__.forwardRef)((props, ref) => {
     const quillRef = (0,react__WEBPACK_IMPORTED_MODULE_1__.useRef)(null);
@@ -60106,6 +60151,7 @@ const SimpleRichTextEditor = ({ value, onChange, placeholder = 'Write your conte
     const quillRef = (0,react__WEBPACK_IMPORTED_MODULE_1__.useRef)(null);
     const [editorHtml, setEditorHtml] = (0,react__WEBPACK_IMPORTED_MODULE_1__.useState)(value);
     const [quillInstance, setQuillInstance] = (0,react__WEBPACK_IMPORTED_MODULE_1__.useState)(null);
+    const [showExpandedToolbar, setShowExpandedToolbar] = (0,react__WEBPACK_IMPORTED_MODULE_1__.useState)(false);
     // Handle paste events to better preserve formatting and variables
     const handlePaste = (0,react__WEBPACK_IMPORTED_MODULE_1__.useCallback)((e) => {
         var _a;
@@ -60182,26 +60228,30 @@ const SimpleRichTextEditor = ({ value, onChange, placeholder = 'Write your conte
             };
         }
     }, [handlePaste, quillRef]);
-    // Define toolbar options for Quill
+    // Define enhanced toolbar options for Quill
     const modules = {
-        toolbar: [
-            [{ 'header': [1, 2, 3, false] }],
-            ['bold', 'italic', 'underline', 'strike'],
-            [{ 'list': 'ordered' }, { 'list': 'bullet' }],
-            ['link'],
-            ['clean']
-        ],
+        toolbar: {
+            container: [
+                [{ 'header': [1, 2, 3, false] }],
+                ['bold', 'italic', 'underline', 'strike'],
+                [{ 'color': [] }, { 'background': [] }],
+                [{ 'list': 'ordered' }, { 'list': 'bullet' }],
+                [{ 'align': [] }],
+                ['link', 'blockquote'],
+                ['clean']
+            ],
+        },
         clipboard: {
             // Skip the default handling mechanism to better preserve our variables
             matchVisual: false
         }
     };
-    // Define formats that the editor should allow - Quill 2.x compatible format names
+    // Define formats that the editor should allow - fixed for Quill 2.x
     const formats = [
         'header',
         'bold', 'italic', 'underline', 'strike',
-        'list', // In Quill 2.x, 'list' includes both bullet and ordered lists
-        'link'
+        'color', 'background',
+        'list', 'align', 'link', 'blockquote'
     ];
     // Handle changes in the editor
     const handleChange = (html) => {
@@ -60225,6 +60275,26 @@ const SimpleRichTextEditor = ({ value, onChange, placeholder = 'Write your conte
         // Move cursor after the inserted variable
         editor.setSelection(position + variableName.length + 4, 0);
     };
+    // Apply custom format (support note, warning note, etc.)
+    const applyCustomFormat = (formatClass, wrapperTag = 'div') => {
+        var _a;
+        const editor = quillInstance || ((_a = quillRef.current) === null || _a === void 0 ? void 0 : _a.getEditor());
+        if (!editor)
+            return;
+        const range = editor.getSelection();
+        if (!range)
+            return;
+        // Get the selected text
+        const selectedText = editor.getText(range.index, range.length);
+        // Delete the selected text
+        editor.deleteText(range.index, range.length);
+        // Create the formatted element
+        const formattedHTML = `<${wrapperTag} class="${formatClass}">${selectedText}</${wrapperTag}>`;
+        // Insert the formatted element
+        editor.clipboard.dangerouslyPasteHTML(range.index, formattedHTML);
+        // Select the newly inserted content
+        editor.setSelection(range.index + formattedHTML.length, 0);
+    };
     // Common variables that might be used in templates
     const commonVariables = [
         'customerName',
@@ -60234,11 +60304,51 @@ const SimpleRichTextEditor = ({ value, onChange, placeholder = 'Write your conte
         'teamName',
         'responseTime'
     ];
-    return ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "rich-text-editor", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("style", { children: editorStyle }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(ReactQuillWithRef, { ref: quillRef, theme: "snow", value: editorHtml, onChange: handleChange, modules: modules, formats: formats, placeholder: placeholder }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "mt-2 flex flex-wrap items-center", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("span", { className: "text-xs text-gray-500 mr-2", children: "Insert variable:" }), commonVariables.map(varName => ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("button", { type: "button", onClick: () => insertVariable(varName), className: "text-xs m-1 px-2 py-1 bg-blue-100 text-blue-800 rounded hover:bg-blue-200 cursor-pointer", children: varName }, varName))), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("button", { type: "button", onClick: () => {
-                            const varName = prompt('Enter custom variable name:');
-                            if (varName)
-                                insertVariable(varName);
-                        }, className: "text-xs m-1 px-2 py-1 bg-gray-100 text-gray-800 rounded hover:bg-gray-200 flex items-center", children: "+ Custom" })] })] }));
+    // Customer-focused variables
+    const customerVariables = [
+        'customerEmail',
+        'customerCompany',
+        'customerPhone',
+        'accountNumber',
+        'planType'
+    ];
+    // Support-focused variables
+    const supportVariables = [
+        'ticketNumber',
+        'ticketStatus',
+        'ticketPriority',
+        'assignedTeam',
+        'supportHours'
+    ];
+    return ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "rich-text-editor", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("style", { children: editorStyle }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(ReactQuillWithRef, { ref: quillRef, theme: "snow", value: editorHtml, onChange: handleChange, modules: modules, formats: formats, placeholder: placeholder }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "mt-2", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "flex flex-wrap items-center mb-2", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("span", { className: "text-xs text-gray-500 mr-2", children: "Insert variable:" }), commonVariables.map(varName => ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("button", { type: "button", onClick: () => insertVariable(varName), className: "text-xs m-1 px-2 py-1 bg-blue-100 text-blue-800 rounded hover:bg-blue-200 cursor-pointer", children: varName }, varName))), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("button", { type: "button", onClick: () => {
+                                    const varName = prompt('Enter custom variable name:');
+                                    if (varName)
+                                        insertVariable(varName);
+                                }, className: "text-xs m-1 px-2 py-1 bg-gray-100 text-gray-800 rounded hover:bg-gray-200 flex items-center", children: "+ Custom" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("button", { type: "button", onClick: () => setShowExpandedToolbar(!showExpandedToolbar), className: "text-xs ml-2 px-2 py-1 text-blue-600 hover:text-blue-800 border border-blue-200 rounded", children: showExpandedToolbar ? '▲ Show Less' : '▼ More Options' })] }), showExpandedToolbar && ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "border rounded-md p-3 bg-gray-50 mb-3", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "mb-3", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("h4", { className: "text-xs font-medium text-gray-700 mb-1", children: "Template Formats:" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { className: "flex flex-wrap items-center", children: customFormats.map(format => ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("button", { type: "button", onClick: () => applyCustomFormat(format.className, format.wrapperTag), className: "text-xs m-1 px-2 py-1 bg-orange-100 text-orange-800 rounded hover:bg-orange-200 cursor-pointer", children: format.label }, format.className))) })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "mb-3", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("h4", { className: "text-xs font-medium text-gray-700 mb-1", children: "Customer Variables:" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { className: "flex flex-wrap items-center", children: customerVariables.map(varName => ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("button", { type: "button", onClick: () => insertVariable(varName), className: "text-xs m-1 px-2 py-1 bg-green-100 text-green-800 rounded hover:bg-green-200 cursor-pointer", children: varName }, varName))) })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "mb-3", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("h4", { className: "text-xs font-medium text-gray-700 mb-1", children: "Support Variables:" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { className: "flex flex-wrap items-center", children: supportVariables.map(varName => ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("button", { type: "button", onClick: () => insertVariable(varName), className: "text-xs m-1 px-2 py-1 bg-purple-100 text-purple-800 rounded hover:bg-purple-200 cursor-pointer", children: varName }, varName))) })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("h4", { className: "text-xs font-medium text-gray-700 mb-1", children: "Common Snippets:" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "flex flex-wrap items-center", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("button", { type: "button", onClick: () => {
+                                                    var _a;
+                                                    const editor = quillInstance || ((_a = quillRef.current) === null || _a === void 0 ? void 0 : _a.getEditor());
+                                                    if (editor) {
+                                                        const range = editor.getSelection();
+                                                        const position = range ? range.index : 0;
+                                                        editor.clipboard.dangerouslyPasteHTML(position, '<p>Thank you for contacting our support team. We appreciate your patience.</p>');
+                                                    }
+                                                }, className: "text-xs m-1 px-2 py-1 bg-blue-100 text-blue-800 rounded hover:bg-blue-200 cursor-pointer", children: "Thank You Message" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("button", { type: "button", onClick: () => {
+                                                    var _a;
+                                                    const editor = quillInstance || ((_a = quillRef.current) === null || _a === void 0 ? void 0 : _a.getEditor());
+                                                    if (editor) {
+                                                        const range = editor.getSelection();
+                                                        const position = range ? range.index : 0;
+                                                        editor.clipboard.dangerouslyPasteHTML(position, '<p>Please let us know if you have any other questions.</p><p>Best regards,<br>{{agentName}}<br>{{teamName}} Support</p>');
+                                                    }
+                                                }, className: "text-xs m-1 px-2 py-1 bg-blue-100 text-blue-800 rounded hover:bg-blue-200 cursor-pointer", children: "Closing Message" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("button", { type: "button", onClick: () => {
+                                                    var _a;
+                                                    const editor = quillInstance || ((_a = quillRef.current) === null || _a === void 0 ? void 0 : _a.getEditor());
+                                                    if (editor) {
+                                                        const range = editor.getSelection();
+                                                        const position = range ? range.index : 0;
+                                                        editor.clipboard.dangerouslyPasteHTML(position, '<div class="info-note">For additional information, please visit our knowledge base or documentation.</div>');
+                                                    }
+                                                }, className: "text-xs m-1 px-2 py-1 bg-blue-100 text-blue-800 rounded hover:bg-blue-200 cursor-pointer", children: "Resources Info" })] })] })] }))] })] }));
 };
 /* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = (SimpleRichTextEditor);
 

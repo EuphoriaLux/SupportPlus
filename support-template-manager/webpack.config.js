@@ -66,7 +66,9 @@ module.exports = {
     new CopyPlugin({
       patterns: [
         { from: 'public' },
-        { from: 'src/assets', to: 'assets' }
+        { from: 'src/assets', to: 'assets' },
+        // Add this to ensure quill.snow.css is copied to the dist directory
+        { from: 'node_modules/react-quill-new/dist/quill.snow.css', to: './' }
       ],
     }),
     new HtmlWebpackPlugin({
