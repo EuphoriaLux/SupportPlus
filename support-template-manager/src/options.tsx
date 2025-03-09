@@ -48,6 +48,12 @@ const Options = () => {
   const [templateTranslations, setTemplateTranslations] = useState<Template[]>([]);
   const [richTextMigrationNeeded, setRichTextMigrationNeeded] = useState(false);
 
+  // Handle creating a new template
+  const handleCreateNew = () => {
+    setCurrentTemplate(null);
+    setEditMode('create');
+  };
+
   // Check if migration is needed
   useEffect(() => {
     const checkMigration = async () => {
@@ -183,16 +189,6 @@ const Options = () => {
   useEffect(() => {
     loadTemplates();
   }, []);
-
-// In the main render section, add the migration notice component before the tabs:
-{richTextMigrationNeeded && (
-  <RichTextMigrationNotice
-    onMigrationComplete={() => {
-      setRichTextMigrationNeeded(false);
-      loadTemplates(); // Reload templates after migration
-    }}
-  />
-)}
 
   // Handle creating a new translation of an existing template
   const handleCreateTranslation = (template: Template, language: 'EN' | 'FR' | 'DE') => {
@@ -403,7 +399,8 @@ const Options = () => {
             category: template.category,
             content: template.content,
             variables: template.variables || [],
-            language: template.language || 'EN'
+            language: template.language || 'EN',
+            isRichText: true // Add this to fix the TypeScript error
           });
         }
         
@@ -614,6 +611,15 @@ const Options = () => {
           </button>
         </div>
       </div>
+
+      {richTextMigrationNeeded && (
+        <RichTextMigrationNotice
+          onMigrationComplete={() => {
+            setRichTextMigrationNeeded(false);
+            loadTemplates(); // Reload templates after migration
+          }}
+        />
+      )}
 
       {/* Tabs for switching between Templates, Multilingual View, and Variables */}
       <div className="border-b border-gray-200 mb-6">

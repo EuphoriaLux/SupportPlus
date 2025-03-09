@@ -79,7 +79,8 @@ const TemplateTranslationManager: React.FC<TemplateTranslationManagerProps> = ({
           ...v,
           // Allow modifications to variable descriptions in the future
         })),
-        language: targetLanguage
+        language: targetLanguage,
+        isRichText: true // Add this to fix the TypeScript error
       });
       
       onSave();

@@ -53346,6 +53346,11 @@ const Options = () => {
     const [showLanguageSelector, setShowLanguageSelector] = (0,react__WEBPACK_IMPORTED_MODULE_1__.useState)(false);
     const [templateTranslations, setTemplateTranslations] = (0,react__WEBPACK_IMPORTED_MODULE_1__.useState)([]);
     const [richTextMigrationNeeded, setRichTextMigrationNeeded] = (0,react__WEBPACK_IMPORTED_MODULE_1__.useState)(false);
+    // Handle creating a new template
+    const handleCreateNew = () => {
+        setCurrentTemplate(null);
+        setEditMode('create');
+    };
     // Check if migration is needed
     (0,react__WEBPACK_IMPORTED_MODULE_1__.useEffect)(() => {
         const checkMigration = () => __awaiter(void 0, void 0, void 0, function* () {
@@ -53457,13 +53462,6 @@ const Options = () => {
     (0,react__WEBPACK_IMPORTED_MODULE_1__.useEffect)(() => {
         loadTemplates();
     }, []);
-    // In the main render section, add the migration notice component before the tabs:
-    {
-        richTextMigrationNeeded && ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(_components_RichTextMigrationNotice__WEBPACK_IMPORTED_MODULE_13__["default"], { onMigrationComplete: () => {
-                setRichTextMigrationNeeded(false);
-                loadTemplates(); // Reload templates after migration
-            } }));
-    }
     // Handle creating a new translation of an existing template
     const handleCreateTranslation = (template, language) => {
         // Create a new pre-filled template for the translation
@@ -53641,7 +53639,8 @@ const Options = () => {
                         category: template.category,
                         content: template.content,
                         variables: template.variables || [],
-                        language: template.language || 'EN'
+                        language: template.language || 'EN',
+                        isRichText: true // Add this to fix the TypeScript error
                     });
                 }
                 // Then, handle global variables if present
@@ -53743,7 +53742,10 @@ const Options = () => {
             } }));
     }
     // Render template list (main view)
-    return ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "container mx-auto px-4 py-8 max-w-6xl", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "flex justify-between items-center mb-6", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("h1", { className: "text-2xl font-bold", children: "Support Template Manager" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "space-x-2", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("button", { className: "px-4 py-2 border rounded hover:bg-gray-100", onClick: () => setShowImportExport(true), children: "Import/Export" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("button", { className: "px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600", onClick: handleCreateNew, children: "Create New Template" })] })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { className: "border-b border-gray-200 mb-6", children: (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("nav", { className: "-mb-px flex space-x-8", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("button", { className: `py-2 px-1 border-b-2 font-medium text-sm ${activeTab === 'templates'
+    return ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "container mx-auto px-4 py-8 max-w-6xl", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "flex justify-between items-center mb-6", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("h1", { className: "text-2xl font-bold", children: "Support Template Manager" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "space-x-2", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("button", { className: "px-4 py-2 border rounded hover:bg-gray-100", onClick: () => setShowImportExport(true), children: "Import/Export" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("button", { className: "px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600", onClick: handleCreateNew, children: "Create New Template" })] })] }), richTextMigrationNeeded && ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(_components_RichTextMigrationNotice__WEBPACK_IMPORTED_MODULE_13__["default"], { onMigrationComplete: () => {
+                    setRichTextMigrationNeeded(false);
+                    loadTemplates(); // Reload templates after migration
+                } })), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { className: "border-b border-gray-200 mb-6", children: (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("nav", { className: "-mb-px flex space-x-8", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("button", { className: `py-2 px-1 border-b-2 font-medium text-sm ${activeTab === 'templates'
                                 ? 'border-blue-500 text-blue-600'
                                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`, onClick: () => setActiveTab('templates'), children: "Templates" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("button", { className: `py-2 px-1 border-b-2 font-medium text-sm ${activeTab === 'multilingual'
                                 ? 'border-blue-500 text-blue-600'

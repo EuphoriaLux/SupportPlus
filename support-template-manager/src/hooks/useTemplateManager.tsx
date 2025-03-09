@@ -123,7 +123,8 @@ export const useTemplateManager = () => {
           category: templateCategory,
           content: templateContent,
           variables: templateVariables,
-          language: templateLanguage
+          language: templateLanguage,
+          isRichText: true  // Add this to fix the TypeScript error
         });
       } else if (editMode === 'edit' && currentTemplate) {
         // Update existing template
@@ -267,7 +268,8 @@ export const useTemplateManager = () => {
             category: template.category,
             content: template.content,
             variables: template.variables || [],
-            language: template.language || 'EN'
+            language: template.language || 'EN',
+            isRichText: true  // Add this to fix the TypeScript error
           });
         }
         

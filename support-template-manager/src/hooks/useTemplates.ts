@@ -39,7 +39,8 @@ export const useTemplates = () => {
         category,
         content,
         variables,
-        language
+        language,
+        isRichText: true // Add this to fix the TypeScript error
       });
       
       setTemplates(prev => [...prev, newTemplate]);
