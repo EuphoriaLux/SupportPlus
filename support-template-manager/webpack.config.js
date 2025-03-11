@@ -53,6 +53,7 @@ module.exports = {
     // Add alias to easily switch between react-quill and react-quill-new
     alias: {
       'react-quill': 'react-quill-new'
+      
     }
   },
   // Add cache for faster rebuilds

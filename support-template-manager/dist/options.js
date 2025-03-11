@@ -60060,8 +60060,21 @@ __webpack_require__.r(__webpack_exports__);
 
 
 
-// Fix: Use the correct CSS import path from node_modules
 
+// Suppress table format registration warnings
+const originalConsoleWarn = console.warn;
+console.warn = function (...args) {
+    var _a;
+    // Filter out Quill table format registration warnings
+    if (((_a = args[0]) === null || _a === void 0 ? void 0 : _a.includes) &&
+        args[0].includes('Cannot register') &&
+        ['table', 'tbody', 'tr', 'td', 'th'].some(format => args[0].includes(format))) {
+        // Silently ignore this warning
+        return;
+    }
+    // Pass through all other warnings
+    return originalConsoleWarn.apply(console, args);
+};
 // Custom CSS to integrate with your app's styles
 const editorStyle = `
   .rich-text-editor .ql-container {
@@ -60126,6 +60139,38 @@ const editorStyle = `
   
   .toolbar-expander:hover {
     color: #333;
+  }
+  
+  /* Table styles */
+  .rich-text-editor .ql-editor table {
+    border-collapse: collapse;
+    width: 100%;
+    margin-bottom: 1em;
+    table-layout: fixed;
+    border: 1px solid #ccc;
+  }
+  
+  .rich-text-editor .ql-editor table tbody {
+    display: table-row-group;
+  }
+  
+  .rich-text-editor .ql-editor table tr {
+    display: table-row;
+  }
+  
+  .rich-text-editor .ql-editor table td,
+  .rich-text-editor .ql-editor table th {
+    border: 1px solid #ccc;
+    padding: 8px;
+    text-align: left;
+    min-width: 80px;
+    position: relative;
+    display: table-cell;
+  }
+  
+  .rich-text-editor .ql-editor table th {
+    background-color: #f8f9fa;
+    font-weight: bold;
   }
 `;
 // Define additional formats for advanced styling
@@ -60324,7 +60369,43 @@ const SimpleRichTextEditor = ({ value, onChange, placeholder = 'Write your conte
                                     const varName = prompt('Enter custom variable name:');
                                     if (varName)
                                         insertVariable(varName);
-                                }, className: "text-xs m-1 px-2 py-1 bg-gray-100 text-gray-800 rounded hover:bg-gray-200 flex items-center", children: "+ Custom" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("button", { type: "button", onClick: () => setShowExpandedToolbar(!showExpandedToolbar), className: "text-xs ml-2 px-2 py-1 text-blue-600 hover:text-blue-800 border border-blue-200 rounded", children: showExpandedToolbar ? '▲ Show Less' : '▼ More Options' })] }), showExpandedToolbar && ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "border rounded-md p-3 bg-gray-50 mb-3", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "mb-3", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("h4", { className: "text-xs font-medium text-gray-700 mb-1", children: "Template Formats:" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { className: "flex flex-wrap items-center", children: customFormats.map(format => ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("button", { type: "button", onClick: () => applyCustomFormat(format.className, format.wrapperTag), className: "text-xs m-1 px-2 py-1 bg-orange-100 text-orange-800 rounded hover:bg-orange-200 cursor-pointer", children: format.label }, format.className))) })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "mb-3", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("h4", { className: "text-xs font-medium text-gray-700 mb-1", children: "Customer Variables:" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { className: "flex flex-wrap items-center", children: customerVariables.map(varName => ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("button", { type: "button", onClick: () => insertVariable(varName), className: "text-xs m-1 px-2 py-1 bg-green-100 text-green-800 rounded hover:bg-green-200 cursor-pointer", children: varName }, varName))) })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "mb-3", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("h4", { className: "text-xs font-medium text-gray-700 mb-1", children: "Support Variables:" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { className: "flex flex-wrap items-center", children: supportVariables.map(varName => ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("button", { type: "button", onClick: () => insertVariable(varName), className: "text-xs m-1 px-2 py-1 bg-purple-100 text-purple-800 rounded hover:bg-purple-200 cursor-pointer", children: varName }, varName))) })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("h4", { className: "text-xs font-medium text-gray-700 mb-1", children: "Common Snippets:" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "flex flex-wrap items-center", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("button", { type: "button", onClick: () => {
+                                }, className: "text-xs m-1 px-2 py-1 bg-gray-100 text-gray-800 rounded hover:bg-gray-200 flex items-center", children: "+ Custom" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("button", { type: "button", onClick: () => setShowExpandedToolbar(!showExpandedToolbar), className: "text-xs ml-2 px-2 py-1 text-blue-600 hover:text-blue-800 border border-blue-200 rounded", children: showExpandedToolbar ? '▲ Show Less' : '▼ More Options' })] }), showExpandedToolbar && ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "border rounded-md p-3 bg-gray-50 mb-3", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "mb-3", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("h4", { className: "text-xs font-medium text-gray-700 mb-1", children: "Template Formats:" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "flex flex-wrap items-center", children: [customFormats.map(format => ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("button", { type: "button", onClick: () => applyCustomFormat(format.className, format.wrapperTag), className: "text-xs m-1 px-2 py-1 bg-orange-100 text-orange-800 rounded hover:bg-orange-200 cursor-pointer", children: format.label }, format.className))), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("button", { type: "button", onClick: () => {
+                                                    var _a;
+                                                    const editor = quillInstance || ((_a = quillRef.current) === null || _a === void 0 ? void 0 : _a.getEditor());
+                                                    if (editor) {
+                                                        const range = editor.getSelection();
+                                                        const index = range ? range.index : 0;
+                                                        // Simple table HTML with traditional HTML attributes
+                                                        const tableHTML = `
+                        <table border="1" cellpadding="5" cellspacing="0" style="width:100%; margin:10px 0; border-collapse:collapse;">
+                          <tbody>
+                            <tr>
+                              <th style="background-color:#f3f3f3; font-weight:bold; text-align:left; border:1px solid #ccc; padding:8px;">Header 1</th>
+                              <th style="background-color:#f3f3f3; font-weight:bold; text-align:left; border:1px solid #ccc; padding:8px;">Header 2</th>
+                              <th style="background-color:#f3f3f3; font-weight:bold; text-align:left; border:1px solid #ccc; padding:8px;">Header 3</th>
+                            </tr>
+                            <tr>
+                              <td style="border:1px solid #ccc; padding:8px; text-align:left;">Cell 1-1</td>
+                              <td style="border:1px solid #ccc; padding:8px; text-align:left;">Cell 1-2</td>
+                              <td style="border:1px solid #ccc; padding:8px; text-align:left;">Cell 1-3</td>
+                            </tr>
+                            <tr>
+                              <td style="border:1px solid #ccc; padding:8px; text-align:left;">Cell 2-1</td>
+                              <td style="border:1px solid #ccc; padding:8px; text-align:left;">Cell 2-2</td>
+                              <td style="border:1px solid #ccc; padding:8px; text-align:left;">Cell 2-3</td>
+                            </tr>
+                          </tbody>
+                        </table>
+                        <p><br></p>
+                      `;
+                                                        // Insert the table HTML directly
+                                                        editor.clipboard.dangerouslyPasteHTML(index, tableHTML);
+                                                        // Move cursor after the table
+                                                        setTimeout(() => {
+                                                            editor.setSelection(index + 1, 0);
+                                                        }, 10);
+                                                    }
+                                                }, className: "text-xs m-1 px-2 py-1 bg-purple-100 text-purple-800 rounded hover:bg-purple-200 cursor-pointer", children: "Insert Table" })] })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "mb-3", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("h4", { className: "text-xs font-medium text-gray-700 mb-1", children: "Customer Variables:" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { className: "flex flex-wrap items-center", children: customerVariables.map(varName => ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("button", { type: "button", onClick: () => insertVariable(varName), className: "text-xs m-1 px-2 py-1 bg-green-100 text-green-800 rounded hover:bg-green-200 cursor-pointer", children: varName }, varName))) })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "mb-3", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("h4", { className: "text-xs font-medium text-gray-700 mb-1", children: "Support Variables:" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { className: "flex flex-wrap items-center", children: supportVariables.map(varName => ((0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("button", { type: "button", onClick: () => insertVariable(varName), className: "text-xs m-1 px-2 py-1 bg-purple-100 text-purple-800 rounded hover:bg-purple-200 cursor-pointer", children: varName }, varName))) })] }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("h4", { className: "text-xs font-medium text-gray-700 mb-1", children: "Common Snippets:" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { className: "flex flex-wrap items-center", children: [(0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("button", { type: "button", onClick: () => {
                                                     var _a;
                                                     const editor = quillInstance || ((_a = quillRef.current) === null || _a === void 0 ? void 0 : _a.getEditor());
                                                     if (editor) {
@@ -60348,7 +60429,32 @@ const SimpleRichTextEditor = ({ value, onChange, placeholder = 'Write your conte
                                                         const position = range ? range.index : 0;
                                                         editor.clipboard.dangerouslyPasteHTML(position, '<div class="info-note">For additional information, please visit our knowledge base or documentation.</div>');
                                                     }
-                                                }, className: "text-xs m-1 px-2 py-1 bg-blue-100 text-blue-800 rounded hover:bg-blue-200 cursor-pointer", children: "Resources Info" })] })] })] }))] })] }));
+                                                }, className: "text-xs m-1 px-2 py-1 bg-blue-100 text-blue-800 rounded hover:bg-blue-200 cursor-pointer", children: "Resources Info" }), (0,react_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("button", { type: "button", onClick: () => {
+                                                    var _a;
+                                                    const editor = quillInstance || ((_a = quillRef.current) === null || _a === void 0 ? void 0 : _a.getEditor());
+                                                    if (editor) {
+                                                        const range = editor.getSelection();
+                                                        const position = range ? range.index : 0;
+                                                        // Simple 2x2 table that works everywhere
+                                                        const smallTableHTML = `
+                        <table border="1" cellpadding="5" cellspacing="0" style="width:100%; margin:10px 0; border-collapse:collapse;">
+                          <tbody>
+                            <tr>
+                              <td style="border:1px solid #ccc; padding:8px; text-align:left; font-weight:bold;">Item</td>
+                              <td style="border:1px solid #ccc; padding:8px; text-align:left; font-weight:bold;">Description</td>
+                            </tr>
+                            <tr>
+                              <td style="border:1px solid #ccc; padding:8px; text-align:left;">Item 1</td>
+                              <td style="border:1px solid #ccc; padding:8px; text-align:left;">Description 1</td>
+                            </tr>
+                          </tbody>
+                        </table>
+                        <p><br></p>
+                      `;
+                                                        editor.clipboard.dangerouslyPasteHTML(position, smallTableHTML);
+                                                        editor.setSelection(position + 1, 0);
+                                                    }
+                                                }, className: "text-xs m-1 px-2 py-1 bg-blue-100 text-blue-800 rounded hover:bg-blue-200 cursor-pointer", children: "Simple Table" })] })] })] }))] })] }));
 };
 /* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = (SimpleRichTextEditor);
 
