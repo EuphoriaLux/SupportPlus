@@ -1,6 +1,8 @@
 import React, { useEffect, useRef, useState, forwardRef, useImperativeHandle, useCallback } from 'react';
-import ReactQuill from '../utils/quillConfig'; // Use the updated config that enables tables
+import ReactQuill, { tableFormats } from '../utils/quillConfig'; // Import with tableFormats
+import BetterTable from 'quill-better-table';
 import 'react-quill-new/dist/quill.snow.css';
+import 'quill-better-table/dist/quill-better-table.css';
 
 // Define the props for the enhanced ReactQuill component
 interface SimpleRichTextEditorProps {
@@ -139,25 +141,31 @@ const editorStyle = `
   .ql-editor table + * {
     margin-top: 1em !important;
   }
+  
+  /* Customize better-table's operation panel */
+  .rich-text-editor .better-table-operation button {
+    font-size: 13px !important;
+    margin: 2px !important;
+  }
+  
+  /* Better table selection styles */
+  .rich-text-editor .better-table-selected {
+    background-color: rgba(37, 99, 235, 0.1) !important;
+  }
 `;
 
-// Create a ref-based version of ReactQuill to avoid findDOMNode
-const ReactQuillWithRef = forwardRef<any, any>((props, ref) => {
-  const quillRef = useRef<any>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
-  
-  useImperativeHandle(ref, () => ({
-    getEditor: () => quillRef.current?.getEditor(),
-    focus: () => quillRef.current?.focus(),
-    blur: () => quillRef.current?.blur(),
-    getContainerRef: () => containerRef.current
-  }));
-  
+// Create a wrapper div around ReactQuill to avoid findDOMNode issues
+const ReactQuillWrapper = ({ forwardedRef, ...props }: any) => {
   return (
-    <div ref={containerRef} className="quill-container">
-      <ReactQuill ref={quillRef} {...props} />
+    <div className="quill-container">
+      <ReactQuill ref={forwardedRef} {...props} />
     </div>
   );
+};
+
+// Create a forwardRef version
+const ReactQuillWithRef = forwardRef<any, any>((props, ref) => {
+  return <ReactQuillWrapper forwardedRef={ref} {...props} />;
 });
 
 const SimpleRichTextEditor: React.FC<SimpleRichTextEditorProps> = ({
@@ -169,19 +177,153 @@ const SimpleRichTextEditor: React.FC<SimpleRichTextEditorProps> = ({
   const [editorHtml, setEditorHtml] = useState(value);
   const [quillInstance, setQuillInstance] = useState<any>(null);
   const [showExpandedToolbar, setShowExpandedToolbar] = useState(false);
+  const [editorReady, setEditorReady] = useState(false);
+  const [editorMounted, setEditorMounted] = useState(false);
   
-  // Handle paste events to better preserve formatting and variables
+  // Used to safely insert content into the editor
+  const safeInsertionRef = useRef({
+    pendingInsertions: [] as any[],
+    processing: false
+  });
+  
+  // Handle variable highlighting for pasted content
   const handlePaste = useCallback((e: ClipboardEvent) => {
-    const editor = quillInstance || quillRef.current?.getEditor();
+    if (!editorReady) return;
+    
+    const editor = getEditor();
     if (!editor) return;
     
-    // Handle variables in pasted content
+    // Process on next tick to ensure content is pasted
     setTimeout(() => {
-      const text = editor.getText();
-      const varRegex = /\{\{([^}]+)\}\}/g;
+      try {
+        const text = editor.getText();
+        const varRegex = /\{\{([^}]+)\}\}/g;
+        let match;
+        
+        while ((match = varRegex.exec(text)) !== null) {
+          const start = match.index;
+          const length = match[0].length;
+          
+          editor.formatText(start, length, {
+            'color': '#2563eb',
+            'background': '#dbeafe',
+            'bold': true,
+          });
+        }
+      } catch (error) {
+        console.error("Error handling paste:", error);
+      }
+    }, 50);
+  }, [editorReady]);
+  
+  // Initialize editor after a short delay to ensure proper mounting
+  useEffect(() => {
+    setEditorMounted(true);
+    
+    const initTimer = setTimeout(() => {
+      try {
+        if (quillRef.current) {
+          const editor = quillRef.current.getEditor();
+          if (editor) {
+            setQuillInstance(editor);
+            setEditorReady(true);
+            console.log("Quill editor initialized successfully");
+          }
+        }
+      } catch (error) {
+        console.error("Error initializing Quill editor:", error);
+      }
+    }, 200); // Increased delay for better initialization
+    
+    return () => clearTimeout(initTimer);
+  }, []);
+  
+  // Process any pending insertions after editor is ready
+  useEffect(() => {
+    if (editorReady && safeInsertionRef.current.pendingInsertions.length > 0) {
+      processPendingInsertions();
+    }
+  }, [editorReady]);
+  
+  // Process the queue of pending insertions
+  const processPendingInsertions = useCallback(() => {
+    if (safeInsertionRef.current.processing || !editorReady) return;
+    
+    safeInsertionRef.current.processing = true;
+    
+    try {
+      const editor = getEditor();
+      if (!editor) {
+        safeInsertionRef.current.processing = false;
+        return;
+      }
+      
+      while (safeInsertionRef.current.pendingInsertions.length > 0) {
+        const insertion = safeInsertionRef.current.pendingInsertions.shift();
+        if (insertion) {
+          try {
+            if (insertion.type === 'variable') {
+              insertVariableDirectly(editor, insertion.value);
+            } else if (insertion.type === 'html') {
+              insertHtmlDirectly(editor, insertion.value);
+            } else if (insertion.type === 'table') {
+              insertTableDirectly(editor, insertion.rows, insertion.cols);
+            }
+          } catch (error) {
+            console.error(`Error processing ${insertion.type} insertion:`, error);
+          }
+        }
+      }
+    } catch (error) {
+      console.error("Error in processing pending insertions:", error);
+    } finally {
+      safeInsertionRef.current.processing = false;
+    }
+  }, [editorReady]);
+  
+  // Update editor content when value prop changes
+  useEffect(() => {
+    setEditorHtml(value);
+    
+    // Format variables after content update
+    if (editorReady && quillInstance) {
+      setTimeout(() => {
+        try {
+          formatVariables(quillInstance);
+        } catch (error) {
+          console.error("Error formatting variables after value change:", error);
+        }
+      }, 50);
+    }
+  }, [value, editorReady, quillInstance]);
+  
+  // Add event listener for paste
+  useEffect(() => {
+    const container = document.querySelector('.quill-container');
+    
+    if (container) {
+      container.addEventListener('paste', handlePaste as unknown as EventListener, true);
+      return () => {
+        container.removeEventListener('paste', handlePaste as unknown as EventListener, true);
+      };
+    } else {
+      document.addEventListener('paste', handlePaste as unknown as EventListener, true);
+      return () => {
+        document.removeEventListener('paste', handlePaste as unknown as EventListener, true);
+      };
+    }
+  }, [handlePaste, editorMounted]);
+  
+  // Format all variables in the document
+  const formatVariables = (editor: any) => {
+    try {
+      if (!editor) return;
+      
+      const content = editor.getText();
+      const variableRegex = /\{\{([^}]+)\}\}/g;
       let match;
       
-      while ((match = varRegex.exec(text)) !== null) {
+      while ((match = variableRegex.exec(content)) !== null) {
         const start = match.index;
         const length = match[0].length;
         
@@ -189,69 +331,14 @@ const SimpleRichTextEditor: React.FC<SimpleRichTextEditorProps> = ({
           'color': '#2563eb',
           'background': '#dbeafe',
           'bold': true,
-        });
+        }, 'api');
       }
-    }, 10);
-  }, [quillInstance]);
+    } catch (error) {
+      console.error("Error formatting variables:", error);
+    }
+  };
   
-  // Get the Quill instance after mounting
-  useEffect(() => {
-    // This effect runs once to capture the Quill instance
-    if (quillRef.current && quillRef.current.getEditor) {
-      const editor = quillRef.current.getEditor();
-      setQuillInstance(editor);
-    }
-  }, []);
-
-  // Sync the editor content with the parent component's state
-  useEffect(() => {
-    setEditorHtml(value);
-    
-    // After setting content, find and style all variable placeholders
-    if (quillInstance || quillRef.current?.getEditor()) {
-      setTimeout(() => {
-        const editor = quillInstance || quillRef.current?.getEditor();
-        if (editor) {
-          const content = editor.getText();
-          const variableRegex = /\{\{([^}]+)\}\}/g;
-          let match;
-          
-          // Find and format variables
-          while ((match = variableRegex.exec(content)) !== null) {
-            const start = match.index;
-            const length = match[0].length;
-            
-            editor.formatText(start, length, {
-              'color': '#2563eb',
-              'background': '#dbeafe',
-              'bold': true,
-            }, 'api');
-          }
-        }
-      }, 10);
-    }
-  }, [value, quillInstance]);
-
-  // Add event listener for paste
-  useEffect(() => {
-    const container = quillRef.current?.getContainerRef?.();
-    
-    if (container) {
-      // Add paste event listener to the container rather than document
-      container.addEventListener('paste', handlePaste as unknown as EventListener, true);
-      return () => {
-        container.removeEventListener('paste', handlePaste as unknown as EventListener, true);
-      };
-    } else {
-      // Fallback to document if container ref isn't available
-      document.addEventListener('paste', handlePaste as unknown as EventListener, true);
-      return () => {
-        document.removeEventListener('paste', handlePaste as unknown as EventListener, true);
-      };
-    }
-  }, [handlePaste, quillRef]);
-
-  // Define enhanced toolbar options for Quill
+  // Define editor modules - use only safely registered formats
   const modules = {
     toolbar: {
       container: [
@@ -261,106 +348,305 @@ const SimpleRichTextEditor: React.FC<SimpleRichTextEditorProps> = ({
         [{ 'list': 'ordered' }, { 'list': 'bullet' }],
         [{ 'align': [] }],
         ['link', 'blockquote'],
-        ['clean']
+        ['clean'],
+        ['better-table'] // Keep the better-table button
       ],
+      handlers: {
+        'better-table': function() {
+          insertBetterTable();
+        }
+      }
+    },
+    'better-table': {
+      operationMenu: {
+        items: {
+          insertColumnRight: {
+            text: 'Insert Column Right'
+          },
+          insertColumnLeft: {
+            text: 'Insert Column Left'
+          },
+          insertRowUp: {
+            text: 'Insert Row Above'
+          },
+          insertRowDown: {
+            text: 'Insert Row Below'
+          },
+          mergeCells: {
+            text: 'Merge Cells'
+          },
+          unmergeCells: {
+            text: 'Unmerge Cells'
+          },
+          deleteColumn: {
+            text: 'Delete Column'
+          },
+          deleteRow: {
+            text: 'Delete Row'
+          },
+          deleteTable: {
+            text: 'Delete Table'
+          }
+        },
+        color: {
+          colors: ['#e6f7ff', '#fffbe6', '#e6fffb', '#f3f0ff', '#fff7e6', '#fff0f6'],
+          text: 'Background Color'
+        }
+      }
+    },
+    keyboard: {
+      bindings: BetterTable.keyboardBindings ? BetterTable.keyboardBindings : {}
     },
     clipboard: {
-      // Match visual doesn't work well with tables
       matchVisual: false
-    },
-    table: true, // Enable the table module
+    }
   };
-
-  // Define formats that the editor should allow - now including table formats
+  
+  // Define formats that the editor should allow - stick to known working formats
   const formats = [
     'header',
     'bold', 'italic', 'underline', 'strike',
     'color', 'background',
     'list', 'align', 'link', 'blockquote',
-    // Table formats
-    'table', 'table-body', 'table-row', 'table-cell', 'table-header'
+    // Use only the validated table formats from quillConfig
+    ...tableFormats
   ];
-
+  
   // Handle changes in the editor
   const handleChange = (html: string) => {
     setEditorHtml(html);
     onChange(html);
   };
-
-  // Custom function to insert a variable placeholder at cursor position
-  const insertVariable = (variableName: string) => {
-    const editor = quillInstance || quillRef.current?.getEditor();
-    if (!editor) return;
-    
-    const range = editor.getSelection();
-    const position = range ? range.index : 0;
-    
-    // Insert the variable placeholder at the cursor position
-    editor.insertText(position, `{{${variableName}}}`, {
-      'color': '#2563eb',
-      'background': '#dbeafe',
-      'bold': true,
-    });
-    
-    // Move cursor after the inserted variable
-    editor.setSelection(position + variableName.length + 4, 0);
-  };
-
-  // Apply custom format (support note, warning note, etc.)
-  const applyCustomFormat = (formatClass: string, wrapperTag: string = 'div') => {
-    const editor = quillInstance || quillRef.current?.getEditor();
-    if (!editor) return;
-    
-    const range = editor.getSelection();
-    if (!range) return;
-    
-    // Get the selected text
-    const selectedText = editor.getText(range.index, range.length);
-    
-    // Delete the selected text
-    editor.deleteText(range.index, range.length);
-    
-    // Create the formatted element
-    const formattedHTML = `<${wrapperTag} class="${formatClass}">${selectedText}</${wrapperTag}>`;
-    
-    // Insert the formatted element
-    editor.clipboard.dangerouslyPasteHTML(range.index, formattedHTML);
-    
-    // Select the newly inserted content
-    editor.setSelection(range.index + formattedHTML.length, 0);
+  
+  // Safely get editor instance
+  const getEditor = () => {
+    try {
+      return quillInstance || (quillRef.current?.getEditor ? quillRef.current.getEditor() : null);
+    } catch (error) {
+      console.error("Error getting editor instance:", error);
+      return null;
+    }
   };
   
-
-  const insertTable = (rows = 3, cols = 3) => {
-    const editor = quillInstance || quillRef.current?.getEditor();
-    if (!editor) return;
+  // Queue variable insertion for safe processing
+  const queueVariableInsertion = (variableName: string) => {
+    safeInsertionRef.current.pendingInsertions.push({
+      type: 'variable',
+      value: variableName
+    });
     
-    const range = editor.getSelection();
-    const position = range ? range.index : 0;
-    
-    // Create table HTML
-    let tableHTML = '<table style="width:100%; border-collapse:collapse; margin:10px 0;">';
-    tableHTML += '<tbody>';
-    
-    for (let r = 0; r < rows; r++) {
-      tableHTML += '<tr>';
-      for (let c = 0; c < cols; c++) {
-        if (r === 0) {
-          tableHTML += `<th style="border:1px solid #ccc; padding:8px; background-color:#f3f3f3; font-weight:bold; text-align:left;">Header ${c+1}</th>`;
-        } else {
-          tableHTML += `<td style="border:1px solid #ccc; padding:8px; text-align:left;">Cell ${r}-${c}</td>`;
-        }
-      }
-      tableHTML += '</tr>';
+    // Try to process immediately if editor is ready
+    if (editorReady && !safeInsertionRef.current.processing) {
+      processPendingInsertions();
     }
+  };
+  
+  // Direct variable insertion implementation
+  const insertVariableDirectly = (editor: any, variableName: string) => {
+    try {
+      // Focus editor
+      editor.focus();
+      
+      // Try to get selection or set default position
+      let range = editor.getSelection();
+      if (!range) {
+        const length = editor.getLength() || 1;
+        editor.setSelection(length - 1, 0);
+        range = { index: length - 1, length: 0 };
+      }
+      
+      const position = range.index;
+      
+      // Insert the variable
+      editor.insertText(position, `{{${variableName}}}`, {
+        'color': '#2563eb',
+        'background': '#dbeafe',
+        'bold': true,
+      });
+      
+      // Try to move cursor after the inserted variable
+      try {
+        editor.setSelection(position + variableName.length + 4, 0);
+      } catch (error) {
+        console.warn("Could not set selection after variable insertion:", error);
+      }
+    } catch (error) {
+      console.error("Error directly inserting variable:", error);
+      // Last-ditch effort: append at end
+      try {
+        const length = editor.getLength() || 1;
+        editor.insertText(length - 1, `{{${variableName}}}`, {
+          'color': '#2563eb',
+          'background': '#dbeafe',
+          'bold': true,
+        });
+      } catch (appendError) {
+        console.error("Failed even to append variable:", appendError);
+      }
+    }
+  };
+  
+  // Public-facing variable insertion function
+  const insertVariable = (variableName: string) => {
+    // Use queueing mechanism for safer insertion
+    queueVariableInsertion(variableName);
+  };
+  
+  // Queue HTML insertion for safe processing
+  const queueHtmlInsertion = (html: string) => {
+    safeInsertionRef.current.pendingInsertions.push({
+      type: 'html',
+      value: html
+    });
     
-    tableHTML += '</tbody></table><p><br></p>';
+    if (editorReady && !safeInsertionRef.current.processing) {
+      processPendingInsertions();
+    }
+  };
+  
+  // Direct HTML insertion implementation
+  const insertHtmlDirectly = (editor: any, html: string) => {
+    try {
+      editor.focus();
+      
+      let range = editor.getSelection();
+      if (!range) {
+        const length = editor.getLength() || 1;
+        editor.setSelection(length - 1, 0);
+        range = { index: length - 1, length: 0 };
+      }
+      
+      editor.clipboard.dangerouslyPasteHTML(range.index, html);
+    } catch (error) {
+      console.error("Error directly inserting HTML:", error);
+      // Try to append at end
+      try {
+        const length = editor.getLength() || 1;
+        editor.clipboard.dangerouslyPasteHTML(length - 1, html);
+      } catch (appendError) {
+        console.error("Failed even to append HTML:", appendError);
+      }
+    }
+  };
+  
+  // Apply custom format with safer implementation
+  const applyCustomFormat = (formatClass: string, wrapperTag: string = 'div') => {
+    try {
+      const editor = getEditor();
+      if (!editor) return;
+      
+      editor.focus();
+      
+      let range = editor.getSelection();
+      if (!range) {
+        console.warn("No selection for custom format - creating placeholder");
+        editor.setSelection(0, 0);
+        range = { index: 0, length: 0 };
+        
+        // Create placeholder content
+        editor.insertText(0, "Your content here", {});
+        editor.setSelection(0, 16);
+        range = { index: 0, length: 16 };
+      }
+      
+      // Get the selected text
+      const selectedText = editor.getText(range.index, range.length) || "Your content here";
+      
+      // Delete the selected text
+      editor.deleteText(range.index, range.length);
+      
+      // Create the formatted element
+      const formattedHTML = `<${wrapperTag} class="${formatClass}">${selectedText}</${wrapperTag}>`;
+      
+      // Insert the formatted element
+      editor.clipboard.dangerouslyPasteHTML(range.index, formattedHTML);
+    } catch (error) {
+      console.error("Error applying custom format:", error);
+    }
+  };
+  
+  // Queue table insertion for safe processing
+  const queueTableInsertion = (rows: number, cols: number) => {
+    safeInsertionRef.current.pendingInsertions.push({
+      type: 'table',
+      rows,
+      cols
+    });
     
-    // Insert at current selection
-    editor.clipboard.dangerouslyPasteHTML(position, tableHTML);
-    
-    // Move cursor after the table
-    editor.setSelection(position + 1, 0);
+    if (editorReady && !safeInsertionRef.current.processing) {
+      processPendingInsertions();
+    }
+  };
+  
+  // Insert table directly using HTML
+  const insertTableDirectly = (editor: any, rows: number, cols: number) => {
+    try {
+      editor.focus();
+      
+      // Create table HTML
+      let tableHTML = '<table style="width:100%; border-collapse:collapse; margin:10px 0;">';
+      tableHTML += '<tbody>';
+      
+      for (let r = 0; r < rows; r++) {
+        tableHTML += '<tr>';
+        for (let c = 0; c < cols; c++) {
+          if (r === 0) {
+            tableHTML += `<th style="border:1px solid #ccc; padding:8px; background-color:#f3f3f3; font-weight:bold; text-align:left;">Header ${c+1}</th>`;
+          } else {
+            tableHTML += `<td style="border:1px solid #ccc; padding:8px; text-align:left;">Cell ${r}-${c}</td>`;
+          }
+        }
+        tableHTML += '</tr>';
+      }
+      
+      tableHTML += '</tbody></table><p><br></p>';
+      
+      // Insert at current position or end
+      let range = editor.getSelection();
+      if (!range) {
+        const length = editor.getLength() || 1;
+        editor.setSelection(length - 1, 0);
+        range = { index: length - 1, length: 0 };
+      }
+      
+      editor.clipboard.dangerouslyPasteHTML(range.index, tableHTML);
+    } catch (error) {
+      console.error("Error inserting table HTML directly:", error);
+    }
+  };
+  
+  // Public-facing function for table insertion
+  const insertBetterTable = () => {
+    try {
+      const editor = getEditor();
+      if (!editor) {
+        console.warn("Editor not available for table insertion");
+        return;
+      }
+      
+      // Prompt for rows and columns
+      const rows = parseInt(prompt('Number of rows:', '3') || '3', 10);
+      const cols = parseInt(prompt('Number of columns:', '3') || '3', 10);
+      
+      if (!isNaN(rows) && !isNaN(cols) && rows > 0 && cols > 0) {
+        // Try to use better-table module
+        try {
+          const betterTableModule = editor.getModule('better-table');
+          if (betterTableModule && typeof betterTableModule.insertTable === 'function') {
+            betterTableModule.insertTable(rows, cols);
+            return;
+          }
+        } catch (moduleError) {
+          console.warn("Better table module not available:", moduleError);
+        }
+        
+        // Fallback to direct HTML insertion
+        queueTableInsertion(rows, cols);
+      }
+    } catch (error) {
+      console.error("Error inserting better table:", error);
+      // No fallback needed as queueTableInsertion is already called above
+    }
   };
 
   // Common variables that might be used in templates
@@ -398,28 +684,21 @@ const SimpleRichTextEditor: React.FC<SimpleRichTextEditorProps> = ({
       <div className="flex flex-wrap items-center gap-2">
         <button
           type="button"
-          onClick={() => insertTable(3, 3)}
+          onClick={() => queueTableInsertion(3, 3)}
           className="text-xs px-2 py-1 bg-purple-100 text-purple-800 rounded hover:bg-purple-200 cursor-pointer"
         >
           3×3 Table
         </button>
         <button
           type="button"
-          onClick={() => insertTable(2, 2)}
+          onClick={() => queueTableInsertion(2, 2)}
           className="text-xs px-2 py-1 bg-purple-100 text-purple-800 rounded hover:bg-purple-200 cursor-pointer"
         >
           2×2 Table
         </button>
         <button
           type="button"
-          onClick={() => {
-            // Ask user for table dimensions
-            const rows = parseInt(prompt('Number of rows:', '3') || '3');
-            const cols = parseInt(prompt('Number of columns:', '3') || '3');
-            if (!isNaN(rows) && !isNaN(cols) && rows > 0 && cols > 0) {
-              insertTable(rows, cols);
-            }
-          }}
+          onClick={insertBetterTable}
           className="text-xs px-2 py-1 bg-purple-100 text-purple-800 rounded hover:bg-purple-200 cursor-pointer"
         >
           Custom Table
@@ -431,6 +710,14 @@ const SimpleRichTextEditor: React.FC<SimpleRichTextEditorProps> = ({
   return (
     <div className="rich-text-editor">
       <style>{editorStyle}</style>
+      
+      {/* Display editor loading state if needed */}
+      {!editorReady && (
+        <div className="bg-blue-50 p-2 mb-2 text-sm text-blue-800 rounded">
+          Initializing editor...
+        </div>
+      )}
+      
       <ReactQuillWithRef
         ref={quillRef}
         theme="snow"
@@ -537,42 +824,21 @@ const SimpleRichTextEditor: React.FC<SimpleRichTextEditorProps> = ({
               <div className="flex flex-wrap items-center">
                 <button
                   type="button"
-                  onClick={() => {
-                    const editor = quillInstance || quillRef.current?.getEditor();
-                    if (editor) {
-                      const range = editor.getSelection();
-                      const position = range ? range.index : 0;
-                      editor.clipboard.dangerouslyPasteHTML(position, '<p>Thank you for contacting our support team. We appreciate your patience.</p>');
-                    }
-                  }}
+                  onClick={() => queueHtmlInsertion('<p>Thank you for contacting our support team. We appreciate your patience.</p>')}
                   className="text-xs m-1 px-2 py-1 bg-blue-100 text-blue-800 rounded hover:bg-blue-200 cursor-pointer"
                 >
                   Thank You Message
                 </button>
                 <button
                   type="button"
-                  onClick={() => {
-                    const editor = quillInstance || quillRef.current?.getEditor();
-                    if (editor) {
-                      const range = editor.getSelection();
-                      const position = range ? range.index : 0;
-                      editor.clipboard.dangerouslyPasteHTML(position, '<p>Please let us know if you have any other questions.</p><p>Best regards,<br>{{agentName}}<br>{{teamName}} Support</p>');
-                    }
-                  }}
+                  onClick={() => queueHtmlInsertion('<p>Please let us know if you have any other questions.</p><p>Best regards,<br>{{agentName}}<br>{{teamName}} Support</p>')}
                   className="text-xs m-1 px-2 py-1 bg-blue-100 text-blue-800 rounded hover:bg-blue-200 cursor-pointer"
                 >
                   Closing Message
                 </button>
                 <button
                   type="button"
-                  onClick={() => {
-                    const editor = quillInstance || quillRef.current?.getEditor();
-                    if (editor) {
-                      const range = editor.getSelection();
-                      const position = range ? range.index : 0;
-                      editor.clipboard.dangerouslyPasteHTML(position, '<div class="info-note">For additional information, please visit our knowledge base or documentation.</div>');
-                    }
-                  }}
+                  onClick={() => queueHtmlInsertion('<div class="info-note">For additional information, please visit our knowledge base or documentation.</div>')}
                   className="text-xs m-1 px-2 py-1 bg-blue-100 text-blue-800 rounded hover:bg-blue-200 cursor-pointer"
                 >
                   Resources Info

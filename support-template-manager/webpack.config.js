@@ -31,10 +31,13 @@ module.exports = {
           transpileOnly: true
         }
       },
-      // Special handling for react-quill-new - use babel-loader instead
+      // Special handling for quill-related modules
       {
         test: /\.js$/,
-        include: /node_modules\/react-quill-new/,
+        include: [
+          /node_modules\/react-quill-new/,
+          /node_modules\/quill-better-table/
+        ],
         use: {
           loader: 'babel-loader',
           options: {
@@ -53,7 +56,6 @@ module.exports = {
     // Add alias to easily switch between react-quill and react-quill-new
     alias: {
       'react-quill': 'react-quill-new'
-      
     }
   },
   // Add cache for faster rebuilds
@@ -68,8 +70,9 @@ module.exports = {
       patterns: [
         { from: 'public' },
         { from: 'src/assets', to: 'assets' },
-        // Add this to ensure quill.snow.css is copied to the dist directory
-        { from: 'node_modules/react-quill-new/dist/quill.snow.css', to: './' }
+        // Add this to ensure quill CSS files are copied to the dist directory
+        { from: 'node_modules/react-quill-new/dist/quill.snow.css', to: './' },
+        { from: 'node_modules/quill-better-table/dist/quill-better-table.css', to: './' }
       ],
     }),
     new HtmlWebpackPlugin({
