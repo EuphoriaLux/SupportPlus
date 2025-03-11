@@ -329,37 +329,26 @@ const SimpleRichTextEditor: React.FC<SimpleRichTextEditorProps> = ({
     // Select the newly inserted content
     editor.setSelection(range.index + formattedHTML.length, 0);
   };
+  
 
-  // Improved table insertion function
   const insertTable = (rows = 3, cols = 3) => {
     const editor = quillInstance || quillRef.current?.getEditor();
     if (!editor) return;
     
-    // Use the table module if available
-    if (editor.getModule('table')) {
-      try {
-        editor.getModule('table').insertTable(rows, cols, true);
-        return;
-      } catch (error) {
-        console.warn('Error using table module, falling back to HTML insertion:', error);
-      }
-    }
-    
-    // Fallback to manual HTML insertion
     const range = editor.getSelection();
-    const index = range ? range.index : 0;
+    const position = range ? range.index : 0;
     
-    // Create a table with proper styling that will render correctly
-    let tableHTML = '<table style="width:100%; border-collapse:collapse; margin:10px 0; display:table;">';
-    tableHTML += '<tbody style="display:table-row-group;">';
+    // Create table HTML
+    let tableHTML = '<table style="width:100%; border-collapse:collapse; margin:10px 0;">';
+    tableHTML += '<tbody>';
     
     for (let r = 0; r < rows; r++) {
-      tableHTML += '<tr style="display:table-row;">';
+      tableHTML += '<tr>';
       for (let c = 0; c < cols; c++) {
         if (r === 0) {
-          tableHTML += `<th style="border:1px solid #ccc; padding:8px; background-color:#f3f3f3; font-weight:bold; text-align:left; display:table-cell;">Header ${c+1}</th>`;
+          tableHTML += `<th style="border:1px solid #ccc; padding:8px; background-color:#f3f3f3; font-weight:bold; text-align:left;">Header ${c+1}</th>`;
         } else {
-          tableHTML += `<td style="border:1px solid #ccc; padding:8px; text-align:left; display:table-cell;">Cell ${r}-${c}</td>`;
+          tableHTML += `<td style="border:1px solid #ccc; padding:8px; text-align:left;">Cell ${r}-${c}</td>`;
         }
       }
       tableHTML += '</tr>';
@@ -368,10 +357,10 @@ const SimpleRichTextEditor: React.FC<SimpleRichTextEditorProps> = ({
     tableHTML += '</tbody></table><p><br></p>';
     
     // Insert at current selection
-    editor.clipboard.dangerouslyPasteHTML(index, tableHTML);
+    editor.clipboard.dangerouslyPasteHTML(position, tableHTML);
     
     // Move cursor after the table
-    editor.setSelection(index + 1, 0);
+    editor.setSelection(position + 1, 0);
   };
 
   // Common variables that might be used in templates
