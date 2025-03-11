@@ -527,3 +527,72 @@
       width: 24px;
     }
   }
+
+
+  /* Add these styles to your SimpleRichTextEditor.tsx or to your styles.css file */
+
+/* Table styles with more specific selectors to ensure they take precedence */
+.rich-text-editor .ql-editor table {
+  border-collapse: collapse !important;
+  width: 100% !important;
+  margin-bottom: 1em !important;
+  table-layout: fixed !important;
+  border: 1px solid #ccc !important;
+  display: table !important; /* Force table display */
+}
+
+.rich-text-editor .ql-editor tbody {
+  display: table-row-group !important;
+}
+
+.rich-text-editor .ql-editor tr {
+  display: table-row !important;
+  border-bottom: 1px solid #ccc !important;
+}
+
+.rich-text-editor .ql-editor td,
+.rich-text-editor .ql-editor th {
+  border: 1px solid #ccc !important;
+  padding: 8px !important;
+  text-align: left !important;
+  min-width: 60px !important;
+  position: relative !important;
+  display: table-cell !important;
+  vertical-align: middle !important;
+}
+
+.rich-text-editor .ql-editor th {
+  background-color: #f3f3f3 !important;
+  font-weight: bold !important;
+}
+
+/* Make tables stand out more with a slight background tint */
+.rich-text-editor .ql-editor table {
+  background-color: #fdfdfd !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Hover effect on table cells for better UX */
+.rich-text-editor .ql-editor td:hover,
+.rich-text-editor .ql-editor th:hover {
+  background-color: rgba(0, 123, 255, 0.05) !important;
+}
+
+/* Make sure tables retain their structure in the editor */
+.rich-text-editor table,
+.rich-text-editor tbody,
+.rich-text-editor tr,
+.rich-text-editor td,
+.rich-text-editor th {
+  position: relative;
+}
+
+/* Fix for Quill turning tables into blocks */
+.ql-editor p + table {
+  margin-top: 1em !important;
+}
+
+/* Fix spacing after tables */
+.ql-editor table + * {
+  margin-top: 1em !important;
+}

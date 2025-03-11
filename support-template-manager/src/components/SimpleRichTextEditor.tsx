@@ -1,21 +1,21 @@
 import React, { useEffect, useRef, useState, forwardRef, useImperativeHandle, useCallback } from 'react';
-import ReactQuill from 'react-quill-new';
+import ReactQuill from '../utils/quillConfig'; // Use the updated config that enables tables
 import 'react-quill-new/dist/quill.snow.css';
 
-// Suppress table format registration warnings
-const originalConsoleWarn = console.warn;
-console.warn = function(...args) {
-  // Filter out Quill table format registration warnings
-  if (args[0]?.includes && 
-      args[0].includes('Cannot register') && 
-      ['table', 'tbody', 'tr', 'td', 'th'].some(format => args[0].includes(format))) {
-    // Silently ignore this warning
-    return;
-  }
-  
-  // Pass through all other warnings
-  return originalConsoleWarn.apply(console, args);
-};
+// Define the props for the enhanced ReactQuill component
+interface SimpleRichTextEditorProps {
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+}
+
+// Define additional formats for advanced styling
+const customFormats = [
+  { label: 'Support Note', className: 'support-note', wrapperTag: 'div' },
+  { label: 'Warning Note', className: 'warning-note', wrapperTag: 'div' },
+  { label: 'Info Note', className: 'info-note', wrapperTag: 'div' },
+  { label: 'Code Block', className: 'code-block', wrapperTag: 'pre' },
+];
 
 // Custom CSS to integrate with your app's styles
 const editorStyle = `
@@ -83,53 +83,63 @@ const editorStyle = `
     color: #333;
   }
   
-  /* Table styles */
+  /* Enhanced table styles */
   .rich-text-editor .ql-editor table {
-    border-collapse: collapse;
-    width: 100%;
-    margin-bottom: 1em;
-    table-layout: fixed;
-    border: 1px solid #ccc;
+    border-collapse: collapse !important;
+    width: 100% !important;
+    margin-bottom: 1em !important;
+    table-layout: fixed !important;
+    border: 1px solid #ccc !important;
+    display: table !important;
   }
   
-  .rich-text-editor .ql-editor table tbody {
-    display: table-row-group;
+  .rich-text-editor .ql-editor tbody {
+    display: table-row-group !important;
   }
   
-  .rich-text-editor .ql-editor table tr {
-    display: table-row;
+  .rich-text-editor .ql-editor tr {
+    display: table-row !important;
+    border-bottom: 1px solid #ccc !important;
   }
   
-  .rich-text-editor .ql-editor table td,
-  .rich-text-editor .ql-editor table th {
-    border: 1px solid #ccc;
-    padding: 8px;
-    text-align: left;
-    min-width: 80px;
-    position: relative;
-    display: table-cell;
+  .rich-text-editor .ql-editor td,
+  .rich-text-editor .ql-editor th {
+    border: 1px solid #ccc !important;
+    padding: 8px !important;
+    text-align: left !important;
+    min-width: 60px !important;
+    position: relative !important;
+    display: table-cell !important;
+    vertical-align: middle !important;
   }
   
-  .rich-text-editor .ql-editor table th {
-    background-color: #f8f9fa;
-    font-weight: bold;
+  .rich-text-editor .ql-editor th {
+    background-color: #f3f3f3 !important;
+    font-weight: bold !important;
+  }
+  
+  /* Make tables stand out with a slight background */
+  .rich-text-editor .ql-editor table {
+    background-color: #fdfdfd !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
+  }
+  
+  /* Hover effect on table cells for better UX */
+  .rich-text-editor .ql-editor td:hover,
+  .rich-text-editor .ql-editor th:hover {
+    background-color: rgba(0, 123, 255, 0.05) !important;
+  }
+  
+  /* Fix for Quill turning tables into blocks */
+  .ql-editor p + table {
+    margin-top: 1em !important;
+  }
+  
+  /* Fix spacing after tables */
+  .ql-editor table + * {
+    margin-top: 1em !important;
   }
 `;
-
-// Define the props for the enhanced ReactQuill component
-interface SimpleRichTextEditorProps {
-  value: string;
-  onChange: (value: string) => void;
-  placeholder?: string;
-}
-
-// Define additional formats for advanced styling
-const customFormats = [
-  { label: 'Support Note', className: 'support-note', wrapperTag: 'div' },
-  { label: 'Warning Note', className: 'warning-note', wrapperTag: 'div' },
-  { label: 'Info Note', className: 'info-note', wrapperTag: 'div' },
-  { label: 'Code Block', className: 'code-block', wrapperTag: 'pre' },
-];
 
 // Create a ref-based version of ReactQuill to avoid findDOMNode
 const ReactQuillWithRef = forwardRef<any, any>((props, ref) => {
@@ -255,17 +265,20 @@ const SimpleRichTextEditor: React.FC<SimpleRichTextEditorProps> = ({
       ],
     },
     clipboard: {
-      // Skip the default handling mechanism to better preserve our variables
+      // Match visual doesn't work well with tables
       matchVisual: false
-    }
+    },
+    table: true, // Enable the table module
   };
 
-  // Define formats that the editor should allow - fixed for Quill 2.x
+  // Define formats that the editor should allow - now including table formats
   const formats = [
     'header',
     'bold', 'italic', 'underline', 'strike',
     'color', 'background',
-    'list', 'align', 'link', 'blockquote'
+    'list', 'align', 'link', 'blockquote',
+    // Table formats
+    'table', 'table-body', 'table-row', 'table-cell', 'table-header'
   ];
 
   // Handle changes in the editor
@@ -317,6 +330,50 @@ const SimpleRichTextEditor: React.FC<SimpleRichTextEditorProps> = ({
     editor.setSelection(range.index + formattedHTML.length, 0);
   };
 
+  // Improved table insertion function
+  const insertTable = (rows = 3, cols = 3) => {
+    const editor = quillInstance || quillRef.current?.getEditor();
+    if (!editor) return;
+    
+    // Use the table module if available
+    if (editor.getModule('table')) {
+      try {
+        editor.getModule('table').insertTable(rows, cols, true);
+        return;
+      } catch (error) {
+        console.warn('Error using table module, falling back to HTML insertion:', error);
+      }
+    }
+    
+    // Fallback to manual HTML insertion
+    const range = editor.getSelection();
+    const index = range ? range.index : 0;
+    
+    // Create a table with proper styling that will render correctly
+    let tableHTML = '<table style="width:100%; border-collapse:collapse; margin:10px 0; display:table;">';
+    tableHTML += '<tbody style="display:table-row-group;">';
+    
+    for (let r = 0; r < rows; r++) {
+      tableHTML += '<tr style="display:table-row;">';
+      for (let c = 0; c < cols; c++) {
+        if (r === 0) {
+          tableHTML += `<th style="border:1px solid #ccc; padding:8px; background-color:#f3f3f3; font-weight:bold; text-align:left; display:table-cell;">Header ${c+1}</th>`;
+        } else {
+          tableHTML += `<td style="border:1px solid #ccc; padding:8px; text-align:left; display:table-cell;">Cell ${r}-${c}</td>`;
+        }
+      }
+      tableHTML += '</tr>';
+    }
+    
+    tableHTML += '</tbody></table><p><br></p>';
+    
+    // Insert at current selection
+    editor.clipboard.dangerouslyPasteHTML(index, tableHTML);
+    
+    // Move cursor after the table
+    editor.setSelection(index + 1, 0);
+  };
+
   // Common variables that might be used in templates
   const commonVariables = [
     'customerName', 
@@ -344,6 +401,43 @@ const SimpleRichTextEditor: React.FC<SimpleRichTextEditorProps> = ({
     'assignedTeam',
     'supportHours'
   ];
+
+  // Render table insertion options
+  const renderTableInsertOptions = () => (
+    <div className="mb-3">
+      <h4 className="text-xs font-medium text-gray-700 mb-1">Insert Table:</h4>
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={() => insertTable(3, 3)}
+          className="text-xs px-2 py-1 bg-purple-100 text-purple-800 rounded hover:bg-purple-200 cursor-pointer"
+        >
+          3×3 Table
+        </button>
+        <button
+          type="button"
+          onClick={() => insertTable(2, 2)}
+          className="text-xs px-2 py-1 bg-purple-100 text-purple-800 rounded hover:bg-purple-200 cursor-pointer"
+        >
+          2×2 Table
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            // Ask user for table dimensions
+            const rows = parseInt(prompt('Number of rows:', '3') || '3');
+            const cols = parseInt(prompt('Number of columns:', '3') || '3');
+            if (!isNaN(rows) && !isNaN(cols) && rows > 0 && cols > 0) {
+              insertTable(rows, cols);
+            }
+          }}
+          className="text-xs px-2 py-1 bg-purple-100 text-purple-800 rounded hover:bg-purple-200 cursor-pointer"
+        >
+          Custom Table
+        </button>
+      </div>
+    </div>
+  );
 
   return (
     <div className="rich-text-editor">
@@ -408,55 +502,11 @@ const SimpleRichTextEditor: React.FC<SimpleRichTextEditorProps> = ({
                     {format.label}
                   </button>
                 ))}
-                
-                {/* Simple table button - using direct HTML insertion */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    const editor = quillInstance || quillRef.current?.getEditor();
-                    if (editor) {
-                      const range = editor.getSelection();
-                      const index = range ? range.index : 0;
-                      
-                      // Simple table HTML with traditional HTML attributes
-                      const tableHTML = `
-                        <table border="1" cellpadding="5" cellspacing="0" style="width:100%; margin:10px 0; border-collapse:collapse;">
-                          <tbody>
-                            <tr>
-                              <th style="background-color:#f3f3f3; font-weight:bold; text-align:left; border:1px solid #ccc; padding:8px;">Header 1</th>
-                              <th style="background-color:#f3f3f3; font-weight:bold; text-align:left; border:1px solid #ccc; padding:8px;">Header 2</th>
-                              <th style="background-color:#f3f3f3; font-weight:bold; text-align:left; border:1px solid #ccc; padding:8px;">Header 3</th>
-                            </tr>
-                            <tr>
-                              <td style="border:1px solid #ccc; padding:8px; text-align:left;">Cell 1-1</td>
-                              <td style="border:1px solid #ccc; padding:8px; text-align:left;">Cell 1-2</td>
-                              <td style="border:1px solid #ccc; padding:8px; text-align:left;">Cell 1-3</td>
-                            </tr>
-                            <tr>
-                              <td style="border:1px solid #ccc; padding:8px; text-align:left;">Cell 2-1</td>
-                              <td style="border:1px solid #ccc; padding:8px; text-align:left;">Cell 2-2</td>
-                              <td style="border:1px solid #ccc; padding:8px; text-align:left;">Cell 2-3</td>
-                            </tr>
-                          </tbody>
-                        </table>
-                        <p><br></p>
-                      `;
-                      
-                      // Insert the table HTML directly
-                      editor.clipboard.dangerouslyPasteHTML(index, tableHTML);
-                      
-                      // Move cursor after the table
-                      setTimeout(() => {
-                        editor.setSelection(index + 1, 0);
-                      }, 10);
-                    }
-                  }}
-                  className="text-xs m-1 px-2 py-1 bg-purple-100 text-purple-800 rounded hover:bg-purple-200 cursor-pointer"
-                >
-                  Insert Table
-                </button>
               </div>
             </div>
+            
+            {/* Table insertion section */}
+            {renderTableInsertOptions()}
             
             {/* Customer variables section */}
             <div className="mb-3">
@@ -537,41 +587,6 @@ const SimpleRichTextEditor: React.FC<SimpleRichTextEditorProps> = ({
                   className="text-xs m-1 px-2 py-1 bg-blue-100 text-blue-800 rounded hover:bg-blue-200 cursor-pointer"
                 >
                   Resources Info
-                </button>
-                
-                {/* Simple 2x2 table button for quick tables */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    const editor = quillInstance || quillRef.current?.getEditor();
-                    if (editor) {
-                      const range = editor.getSelection();
-                      const position = range ? range.index : 0;
-                      
-                      // Simple 2x2 table that works everywhere
-                      const smallTableHTML = `
-                        <table border="1" cellpadding="5" cellspacing="0" style="width:100%; margin:10px 0; border-collapse:collapse;">
-                          <tbody>
-                            <tr>
-                              <td style="border:1px solid #ccc; padding:8px; text-align:left; font-weight:bold;">Item</td>
-                              <td style="border:1px solid #ccc; padding:8px; text-align:left; font-weight:bold;">Description</td>
-                            </tr>
-                            <tr>
-                              <td style="border:1px solid #ccc; padding:8px; text-align:left;">Item 1</td>
-                              <td style="border:1px solid #ccc; padding:8px; text-align:left;">Description 1</td>
-                            </tr>
-                          </tbody>
-                        </table>
-                        <p><br></p>
-                      `;
-                      
-                      editor.clipboard.dangerouslyPasteHTML(position, smallTableHTML);
-                      editor.setSelection(position + 1, 0);
-                    }
-                  }}
-                  className="text-xs m-1 px-2 py-1 bg-blue-100 text-blue-800 rounded hover:bg-blue-200 cursor-pointer"
-                >
-                  Simple Table
                 </button>
               </div>
             </div>
